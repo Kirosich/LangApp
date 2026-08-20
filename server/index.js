@@ -7,6 +7,7 @@ import { cardsRouter } from './routes/cards.js';
 import { quizRouter } from './routes/quiz.js';
 import { statsRouter } from './routes/stats.js';
 import { sessionsRouter } from './routes/sessions.js';
+import { theoryRouter } from './routes/theory.js';
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const PORT = process.env.PORT || 3000;
@@ -20,6 +21,7 @@ app.use('/api/cards', cardsRouter);
 app.use('/api/quiz', quizRouter);
 app.use('/api/stats', statsRouter);
 app.use('/api/sessions', sessionsRouter);
+app.use('/api/theory', theoryRouter);
 
 app.use(express.static(CLIENT_DIST));
 app.get('*', (req, res) => {

@@ -74,7 +74,21 @@ export const api = {
   startSession: (sessionType) =>
     apiFetch('/api/sessions/start', { method: 'POST', body: JSON.stringify({ session_type: sessionType }) }),
   endSession: (id, cardsReviewed) =>
-    apiFetch(`/api/sessions/${id}/end`, { method: 'POST', body: JSON.stringify({ cards_reviewed: cardsReviewed }) })
+    apiFetch(`/api/sessions/${id}/end`, { method: 'POST', body: JSON.stringify({ cards_reviewed: cardsReviewed }) }),
+  getTheoryCourses: () => apiFetch('/api/theory/courses'),
+  getTheoryCourse: (id) => apiFetch(`/api/theory/courses/${id}`),
+  createTheoryCourse: (course) => apiFetch('/api/theory/courses', { method: 'POST', body: JSON.stringify(course) }),
+  updateTheoryCourse: (id, course) => apiFetch(`/api/theory/courses/${id}`, { method: 'PUT', body: JSON.stringify(course) }),
+  deleteTheoryCourse: (id) => apiFetch(`/api/theory/courses/${id}`, { method: 'DELETE' }),
+  getTheoryBlock: (id) => apiFetch(`/api/theory/blocks/${id}`),
+  createTheoryBlock: (courseId, block) =>
+    apiFetch(`/api/theory/courses/${courseId}/blocks`, { method: 'POST', body: JSON.stringify(block) }),
+  updateTheoryBlock: (id, block) => apiFetch(`/api/theory/blocks/${id}`, { method: 'PUT', body: JSON.stringify(block) }),
+  deleteTheoryBlock: (id) => apiFetch(`/api/theory/blocks/${id}`, { method: 'DELETE' }),
+  createTheoryItem: (blockId, item) =>
+    apiFetch(`/api/theory/blocks/${blockId}/items`, { method: 'POST', body: JSON.stringify(item) }),
+  updateTheoryItem: (id, item) => apiFetch(`/api/theory/items/${id}`, { method: 'PUT', body: JSON.stringify(item) }),
+  deleteTheoryItem: (id) => apiFetch(`/api/theory/items/${id}`, { method: 'DELETE' })
 };
 
 export function endSessionOnUnload(id, cardsReviewed) {

@@ -7,6 +7,9 @@ import Study from './pages/Study';
 import Quiz from './pages/Quiz';
 import Browse from './pages/Browse';
 import AddCard from './pages/AddCard';
+import Theory from './pages/Theory';
+import TheoryCourse from './pages/TheoryCourse';
+import TheoryBlock from './pages/TheoryBlock';
 
 function ProtectedRoute({ children }) {
   const { authed } = useAuth();
@@ -32,6 +35,9 @@ function AppRoutes() {
         <Route path="browse" element={<Browse />} />
         <Route path="cards/new" element={<AddCard />} />
         <Route path="cards/:id/edit" element={<AddCard />} />
+        <Route path="theory" element={<Theory />} />
+        <Route path="theory/courses/:id" element={<TheoryCourse />} />
+        <Route path="theory/blocks/:id" element={<TheoryBlock />} />
       </Route>
       <Route path="*" element={<Navigate to="/" replace />} />
     </Routes>
