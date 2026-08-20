@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react';
 import { Link } from 'react-router-dom';
 import { api } from '../api/client';
 import { useTheoryThemeLinks } from '../hooks/useTheoryThemeLinks';
+import SpeakButton from '../components/SpeakButton';
 
 const LANGUAGE_LABEL = { kz: 'KZ', en: 'EN' };
 const STATUS_OPTIONS = [
@@ -142,6 +143,7 @@ export default function Browse() {
             <div className="font-medium flex items-center gap-1">
               {card.mastered_at && <span className="text-emerald-400">✓</span>}
               {card.term}
+              <SpeakButton text={card.term} language={card.language} />
             </div>
             <div className="text-neutral-400 text-sm">{card.translation_ru}</div>
             <div className="flex gap-3 mt-2 text-sm items-center">
@@ -194,6 +196,7 @@ export default function Browse() {
                 <td className="px-3 py-2">
                   {card.mastered_at && <span className="text-emerald-400 mr-1">✓</span>}
                   {card.term}
+                  <SpeakButton text={card.term} language={card.language} className="ml-1" />
                 </td>
                 <td className="px-3 py-2">{card.translation_ru}</td>
                 <td className="px-3 py-2 text-neutral-400">

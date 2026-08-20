@@ -4,6 +4,7 @@ import { api } from '../api/client';
 import { useStudySession } from '../hooks/useStudySession';
 import { useTheoryThemeLinks } from '../hooks/useTheoryThemeLinks';
 import { celebrateLevelUp, celebrateBadge } from '../utils/confetti';
+import SpeakButton from '../components/SpeakButton';
 
 const RATINGS = [
   { label: 'Заново', quality: 1, className: 'bg-red-600 hover:bg-red-500' },
@@ -237,15 +238,26 @@ export default function Study() {
         Карточка {index + 1} из {cards.length}
       </div>
 
-      <button
+      <div
+        role="button"
+        tabIndex={0}
         onClick={flip}
-        className="w-full min-h-[220px] rounded-2xl border border-neutral-800 bg-neutral-900 p-6 flex flex-col items-center justify-center gap-3 text-center"
+        onKeyDown={(e) => {
+          if (e.key === 'Enter') {
+            e.preventDefault();
+            flip();
+          }
+        }}
+        className="w-full min-h-[220px] rounded-2xl border border-neutral-800 bg-neutral-900 p-6 flex flex-col items-center justify-center gap-3 text-center cursor-pointer focus:outline-none focus:ring-2 focus:ring-indigo-500"
       >
         <span className="text-xs uppercase tracking-wide text-neutral-500">
           {LANGUAGE_LABEL[card.language]} · {card.theme}
           <TheoryLink link={themeLinks[`${card.language}::${card.theme}`]} />
         </span>
-        <span className="text-3xl font-semibold">{card.term}</span>
+        <span className="text-3xl font-semibold flex items-center gap-2">
+          {card.term}
+          <SpeakButton text={card.term} language={card.language} />
+        </span>
 
         {flipped && (
           <div className="mt-2 space-y-1 text-neutral-300">
@@ -255,7 +267,7 @@ export default function Study() {
           </div>
         )}
         {!flipped && <span className="text-xs text-neutral-600 mt-4">нажмите или Space, чтобы перевернуть</span>}
-      </button>
+      </div>
 
       {flipped && (
         <>
@@ -291,15 +303,26 @@ function PracticeCard({ card, index, total, flipped, onFlip, onNext, onExit, exi
         Тренировка · карточка {index + 1} из {total}
       </div>
 
-      <button
+      <div
+        role="button"
+        tabIndex={0}
         onClick={onFlip}
-        className="w-full min-h-[220px] rounded-2xl border border-neutral-800 bg-neutral-900 p-6 flex flex-col items-center justify-center gap-3 text-center"
+        onKeyDown={(e) => {
+          if (e.key === 'Enter') {
+            e.preventDefault();
+            onFlip();
+          }
+        }}
+        className="w-full min-h-[220px] rounded-2xl border border-neutral-800 bg-neutral-900 p-6 flex flex-col items-center justify-center gap-3 text-center cursor-pointer focus:outline-none focus:ring-2 focus:ring-indigo-500"
       >
         <span className="text-xs uppercase tracking-wide text-neutral-500">
           {LANGUAGE_LABEL[card.language]} · {card.theme}
           <TheoryLink link={themeLinks[`${card.language}::${card.theme}`]} />
         </span>
-        <span className="text-3xl font-semibold">{card.term}</span>
+        <span className="text-3xl font-semibold flex items-center gap-2">
+          {card.term}
+          <SpeakButton text={card.term} language={card.language} />
+        </span>
 
         {flipped && (
           <div className="mt-2 space-y-1 text-neutral-300">
@@ -309,7 +332,7 @@ function PracticeCard({ card, index, total, flipped, onFlip, onNext, onExit, exi
           </div>
         )}
         {!flipped && <span className="text-xs text-neutral-600 mt-4">нажмите или Space, чтобы перевернуть</span>}
-      </button>
+      </div>
 
       {flipped && (
         <button

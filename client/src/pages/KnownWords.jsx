@@ -1,5 +1,6 @@
 import { useEffect, useMemo, useState } from 'react';
 import { api } from '../api/client';
+import SpeakButton from '../components/SpeakButton';
 
 const LANGUAGE_TABS = [
   { value: 'kz', label: 'Казахский' },
@@ -100,7 +101,10 @@ export default function KnownWords() {
                 <div key={card.id} className="rounded-xl border border-neutral-800 bg-neutral-900 p-3">
                   <div className="flex items-start justify-between gap-2">
                     <div>
-                      <div className="font-medium">{card.term}</div>
+                      <div className="font-medium flex items-center gap-1">
+                        {card.term}
+                        <SpeakButton text={card.term} language={language} />
+                      </div>
                       <div className="text-sm text-neutral-400">{card.translation_ru}</div>
                       {card.transcription && <div className="text-xs text-neutral-500 mt-0.5">{card.transcription}</div>}
                       {card.example_sentence && (
