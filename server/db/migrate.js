@@ -57,7 +57,21 @@ const MIGRATIONS = [
   `CREATE INDEX IF NOT EXISTS idx_cards_language ON cards(language)`,
   `CREATE INDEX IF NOT EXISTS idx_sessions_started_at ON study_sessions(started_at)`,
   `CREATE INDEX IF NOT EXISTS idx_theory_blocks_course ON theory_blocks(course_id)`,
-  `CREATE INDEX IF NOT EXISTS idx_theory_items_block ON theory_items(block_id)`
+  `CREATE INDEX IF NOT EXISTS idx_theory_items_block ON theory_items(block_id)`,
+  `CREATE TABLE IF NOT EXISTS user_stats (
+    id INTEGER PRIMARY KEY CHECK (id = 1),
+    total_xp INTEGER NOT NULL DEFAULT 0,
+    current_level INTEGER NOT NULL DEFAULT 1,
+    longest_streak INTEGER NOT NULL DEFAULT 0,
+    best_day_cards INTEGER NOT NULL DEFAULT 0,
+    best_session_minutes INTEGER NOT NULL DEFAULT 0
+  )`,
+  `INSERT OR IGNORE INTO user_stats (id) VALUES (1)`,
+  `CREATE TABLE IF NOT EXISTS badges (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    code TEXT NOT NULL UNIQUE,
+    earned_at TEXT NOT NULL DEFAULT (datetime('now'))
+  )`
 ];
 
 export function runMigrations(db) {

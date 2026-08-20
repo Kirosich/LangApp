@@ -88,7 +88,11 @@ export const api = {
   createTheoryItem: (blockId, item) =>
     apiFetch(`/api/theory/blocks/${blockId}/items`, { method: 'POST', body: JSON.stringify(item) }),
   updateTheoryItem: (id, item) => apiFetch(`/api/theory/items/${id}`, { method: 'PUT', body: JSON.stringify(item) }),
-  deleteTheoryItem: (id) => apiFetch(`/api/theory/items/${id}`, { method: 'DELETE' })
+  deleteTheoryItem: (id) => apiFetch(`/api/theory/items/${id}`, { method: 'DELETE' }),
+  getGamificationSummary: () => apiFetch('/api/gamification/summary'),
+  getHeatmap: (days = 90) => apiFetch(withQuery('/api/gamification/heatmap', { days })),
+  getCumulative: () => apiFetch('/api/gamification/cumulative'),
+  getTopicsBreakdown: () => apiFetch('/api/gamification/topics-breakdown')
 };
 
 export function endSessionOnUnload(id, cardsReviewed) {

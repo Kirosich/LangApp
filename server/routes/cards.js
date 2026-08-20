@@ -1,6 +1,7 @@
 import { Router } from 'express';
 import { db } from '../db/index.js';
 import { calculateNextReview } from '../srs/sm2.js';
+import { xpForReview, STREAK_BONUS_XP, calculateLevel } from '../xp/calculate.js';
 
 export const cardsRouter = Router();
 
@@ -149,11 +150,36 @@ cardsRouter.post('/:id/review', (req, res) => {
   if (!progress) return res.status(404).json({ error: 'Card not found' });
 
   const next = calculateNextReview(progress, quality);
+  const today = new Date().toISOString().slice(0, 10);
 
-  db.prepare(
-    `UPDATE progress SET easiness_factor = ?, interval_days = ?, repetitions = ?, due_date = ?, last_reviewed = ?
-     WHERE card_id = ?`
-  ).run(next.easiness_factor, next.interval_days, next.repetitions, next.due_date, next.last_reviewed, id);
+  const result = db.transaction(() => {
+    const reviewedAlreadyToday = db
+      .prepare('SELECT 1 FROM progress WHERE last_reviewed = ? LIMIT 1')
+      .get(today);
 
-  res.json({ card_id: Number(id), ...next });
+    db.prepare(
+      `UPDATE progress SET easiness_factor = ?, interval_days = ?, repetitions = ?, due_date = ?, last_reviewed = ?
+       WHERE card_id = ?`
+    ).run(next.easiness_factor, next.interval_days, next.repetitions, next.due_date, next.last_reviewed, id);
+
+    const xpGained = xpForReview(quality) + (reviewedAlreadyToday ? 0 : STREAK_BONUS_XP);
+
+    const stats = db.prepare('SELECT total_xp, current_level FROM user_stats WHERE id = 1').get();
+    const newTotalXp = stats.total_xp + xpGained;
+    const newLevel = calculateLevel(newTotalXp);
+    const leveledUp = newLevel > stats.current_level;
+
+    db.prepare('UPDATE user_stats SET total_xp = ?, current_level = ? WHERE id = 1').run(newTotalXp, newLevel);
+
+    return { xpGained, leveledUp, totalXp: newTotalXp, currentLevel: newLevel };
+  })();
+
+  res.json({
+    card_id: Number(id),
+    ...next,
+    xp_gained: result.xpGained,
+    leveled_up: result.leveledUp,
+    total_xp: result.totalXp,
+    current_level: result.currentLevel
+  });
 });

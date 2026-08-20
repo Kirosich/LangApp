@@ -1,6 +1,10 @@
 import { useEffect, useState } from 'react';
 import { Link } from 'react-router-dom';
 import { api } from '../api/client';
+import LevelCard from '../components/progress/LevelCard';
+import Heatmap from '../components/progress/Heatmap';
+import CumulativeChart from '../components/progress/CumulativeChart';
+import TopicsDonut from '../components/progress/TopicsDonut';
 
 const LANGUAGE_TABS = [
   { value: '', label: 'Все' },
@@ -20,9 +24,21 @@ export default function Dashboard() {
   const [error, setError] = useState('');
   const [language, setLanguage] = useState('');
 
+  const [summary, setSummary] = useState(null);
+  const [heatmap, setHeatmap] = useState(null);
+  const [cumulative, setCumulative] = useState(null);
+  const [topics, setTopics] = useState(null);
+
   useEffect(() => {
     api.getStats({ language }).then(setStats).catch((e) => setError(e.message));
   }, [language]);
+
+  useEffect(() => {
+    api.getGamificationSummary().then(setSummary).catch(() => {});
+    api.getHeatmap(90).then(setHeatmap).catch(() => {});
+    api.getCumulative().then(setCumulative).catch(() => {});
+    api.getTopicsBreakdown().then(setTopics).catch(() => {});
+  }, []);
 
   const actionSuffix = language ? `?language=${language}` : '';
 
@@ -84,6 +100,27 @@ export default function Dashboard() {
           </div>
         </div>
       )}
+
+      <div className="space-y-4 pt-2 border-t border-neutral-800">
+        <h2 className="text-sm font-semibold text-neutral-300 pt-2">Прогресс</h2>
+
+        <LevelCard summary={summary} />
+
+        <div>
+          <h3 className="text-xs text-neutral-500 mb-2">Активность за 90 дней</h3>
+          {heatmap ? <Heatmap data={heatmap} /> : <p className="text-sm text-neutral-500">Загрузка…</p>}
+        </div>
+
+        <div>
+          <h3 className="text-xs text-neutral-500 mb-2">Выучено слов (нарастающим итогом)</h3>
+          {cumulative ? <CumulativeChart data={cumulative} /> : <p className="text-sm text-neutral-500">Загрузка…</p>}
+        </div>
+
+        <div>
+          <h3 className="text-xs text-neutral-500 mb-2">Прогресс по темам</h3>
+          {topics ? <TopicsDonut data={topics} /> : <p className="text-sm text-neutral-500">Загрузка…</p>}
+        </div>
+      </div>
     </div>
   );
 }

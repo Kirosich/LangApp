@@ -1,5 +1,6 @@
 import { Router } from 'express';
 import { db } from '../db/index.js';
+import { computeStreak } from '../db/streak.js';
 
 export const statsRouter = Router();
 
@@ -7,28 +8,6 @@ function addDays(dateStr, days) {
   const d = new Date(`${dateStr}T00:00:00Z`);
   d.setUTCDate(d.getUTCDate() + days);
   return d.toISOString().slice(0, 10);
-}
-
-function computeStreak() {
-  const rows = db
-    .prepare(`SELECT DISTINCT date(started_at) AS day FROM study_sessions WHERE ended_at IS NOT NULL`)
-    .all();
-  const days = new Set(rows.map((r) => r.day));
-
-  const today = new Date().toISOString().slice(0, 10);
-  let cursor = today;
-
-  if (!days.has(cursor)) {
-    cursor = addDays(today, -1);
-    if (!days.has(cursor)) return 0;
-  }
-
-  let streak = 0;
-  while (days.has(cursor)) {
-    streak += 1;
-    cursor = addDays(cursor, -1);
-  }
-  return streak;
 }
 
 function sumMinutes(whereClause, params = []) {
@@ -74,7 +53,7 @@ statsRouter.get('/', (req, res) => {
   res.json({
     total_cards: totalCards,
     due_today: dueToday,
-    streak_days: computeStreak(),
+    streak_days: computeStreak(db),
     by_theme: byTheme,
     total_minutes_today: sumMinutes('AND date(started_at) = ?', [today]),
     total_minutes_this_week: sumMinutes('AND date(started_at) >= ?', [weekAgo]),
