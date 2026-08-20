@@ -6,10 +6,12 @@
 
 html, body, #root {
   height: 100%;
+  overflow: hidden;
 }
 
 body {
   margin: 0;
+  overscroll-behavior: none;
   background-color: #0f1115;
   color: #e5e7eb;
   font-family: system-ui, 'Segoe UI', Roboto, sans-serif;

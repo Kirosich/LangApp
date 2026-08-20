@@ -20,20 +20,20 @@ export default function Layout() {
   const { logout } = useAuth();
 
   return (
-    <div className="min-h-svh flex flex-col bg-neutral-950 text-neutral-100">
-      <header className="flex items-center justify-between px-4 py-3 border-b border-neutral-800 sticky top-0 bg-neutral-950/95 backdrop-blur z-10">
+    <div className="h-dvh flex flex-col bg-neutral-950 text-neutral-100 overflow-hidden">
+      <header className="shrink-0 flex items-center justify-between px-4 py-3 border-b border-neutral-800 bg-neutral-950/95 backdrop-blur z-10">
         <span className="font-semibold">Langapp</span>
         <button onClick={logout} className="text-sm text-neutral-500 hover:text-neutral-300">
           Выйти
         </button>
       </header>
 
-      <main className="flex-1 pb-24">
+      <main className="flex-1 overflow-y-auto overscroll-contain">
         <Outlet />
       </main>
 
       <nav
-        className="fixed bottom-0 inset-x-0 flex bg-neutral-900 border-t border-neutral-800 max-w-lg mx-auto left-0 right-0"
+        className="shrink-0 flex bg-neutral-900 border-t border-neutral-800"
         style={{ paddingBottom: 'env(safe-area-inset-bottom)' }}
       >
         {NAV_ITEMS.map((item) => (
