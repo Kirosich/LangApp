@@ -43,7 +43,8 @@
 
 - **Backend**: Node.js + Express, SQLite (`better-sqlite3`), Basic Auth
 - **Frontend**: Vite + React + Tailwind CSS, тёмная тема, мобильный-дружелюбный
-- **Деплой**: Docker + docker-compose + Caddy (авто-HTTPS), GitHub Actions
+- **Деплой**: Docker + docker-compose, GitHub Actions; TLS и проксирование
+  на хосте — системный nginx (общий для всех сайтов на сервере)
 
 ## Структура проекта
 
@@ -70,10 +71,9 @@ langapp/
 │       ├── api/          # обёртка над fetch с Basic Auth
 │       ├── hooks/        # useStudySession — трекинг времени сессии
 │       └── context/      # AuthContext
-├── data/             # SQLite-файл (app.db) + бэкапы, не в git
+├── data/             # SQLite-файл (app.db), не в git
 ├── Dockerfile        # multi-stage: сборка client -> прод-образ с API
 ├── docker-compose.yml
-├── Caddyfile
 └── .github/workflows/deploy.yml
 ```
 
@@ -110,17 +110,24 @@ npm test                # unit-тесты алгоритма SM-2
 
 1. На сервере склонируйте репозиторий и создайте `server/.env` (см.
    `server/.env.example`) с реальными логином/паролем.
-2. Отредактируйте `Caddyfile`, указав свой домен вместо
-   `your-domain.example.com`.
-3. Запустите:
+2. Запустите:
 
    ```bash
    docker compose up -d --build
    ```
 
-   Сервис `app` соберёт client, поднимет Express на порту 3000 (данные
-   SQLite хранятся в `./data`, смонтированной volume), `caddy` отдаст
-   его наружу по HTTPS с автоматическим сертификатом Let's Encrypt.
+   Сервис `app` соберёт client и поднимет Express на порту 3000 внутри
+   контейнера, опубликованном на хосте только на `127.0.0.1:3001`
+   (см. `docker-compose.override.yml`) — данные SQLite хранятся в `./data`,
+   смонтированной volume.
+3. TLS и публичный доступ по домену — через системный **nginx** на хосте
+   (не в докере): для каждого сайта на сервере, включая langapp, у него
+   свой vhost с сертификатом Let's Encrypt (certbot), который проксирует
+   на `127.0.0.1:<порт контейнера>`. Заводить домен для langapp — значит
+   добавить свой vhost-файл в `/etc/nginx/sites-available/`, как у
+   остальных сайтов на машине; отдельный reverse-proxy контейнер (Caddy
+   и т.п.) здесь не нужен и раньше конфликтовал за порты 80/443 с этим же
+   nginx (см. «Обновления» ниже).
 
 ## Автодеплой (GitHub Actions)
 
@@ -171,5 +178,9 @@ Secrets and variables → Actions**:
 - **2026-08-20** — расширенная лексика: 35 английских слов (B2–C1) и 40
   казахских (A1–A2) по темам; склад новых карточек и система
   mastered/«уже знаю».
-- **2026-08-20** — автодеплой через GitHub Actions при push в `master`;
-  Caddy делит сервер с другими проектами через внешнюю docker-сеть.
+- **2026-08-20** — автодеплой через GitHub Actions при push в `master`.
+- **2026-08-20** — убран Docker Caddy: он занимал хостовые порты 80/443
+  и клал доступ ко всем остальным сайтам сервера. Системный nginx уже
+  умеет всё нужное сам (свой vhost с Let's Encrypt для домена langapp,
+  проксирует на `127.0.0.1:3001`) — Caddy оказался лишним и конфликтующим
+  слоем, полностью убран из `docker-compose.yml`.
