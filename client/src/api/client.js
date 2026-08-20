@@ -100,7 +100,10 @@ export const api = {
   getAccuracyTrend: () => apiFetch('/api/gamification/accuracy-trend'),
   getProblemCards: () => apiFetch('/api/gamification/problem-cards'),
   getMilestones: () => apiFetch('/api/gamification/milestones'),
-  getWeeklyRecap: () => apiFetch('/api/gamification/weekly-recap')
+  getWeeklyRecap: () => apiFetch('/api/gamification/weekly-recap'),
+  getTheoryTopics: (language) => apiFetch(withQuery('/api/theory', { language })),
+  getTheoryTopic: (slug) => apiFetch(`/api/theory/${slug}`),
+  markTheoryTopicRead: (slug) => apiFetch(`/api/theory/${slug}/read`, { method: 'POST' })
 };
 
 export function endSessionOnUnload(id, cardsReviewed, correctCount = null) {
