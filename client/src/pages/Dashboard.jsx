@@ -69,6 +69,7 @@ export default function Dashboard() {
   }, []);
 
   const actionSuffix = language ? `?language=${language}` : '';
+  const practiceSuffix = language ? `?language=${language}&practice=100` : '?practice=100';
 
   return (
     <div className="p-4 max-w-lg mx-auto space-y-6">
@@ -104,6 +105,7 @@ export default function Dashboard() {
         <ActionButton to={`/quiz${actionSuffix}`} label="Квиз" icon="🎯" />
         <ActionButton to="/cards/new" label="Добавить карточку" icon="➕" />
         <ActionButton to="/browse" label="Все карточки" icon="🗂️" />
+        <ActionButton to={`/study${practiceSuffix}`} label="Тренировка · 100 слов" icon="🔁" className="col-span-2" />
       </div>
 
       <div>
@@ -199,11 +201,11 @@ function StatCard({ label, value, accent }) {
   );
 }
 
-function ActionButton({ to, label, icon }) {
+function ActionButton({ to, label, icon, className = '' }) {
   return (
     <Link
       to={to}
-      className="flex flex-col items-center justify-center gap-1 rounded-xl border border-neutral-800 bg-neutral-900 hover:bg-neutral-800 py-5 transition-colors"
+      className={`flex flex-col items-center justify-center gap-1 rounded-xl border border-neutral-800 bg-neutral-900 hover:bg-neutral-800 py-5 transition-colors ${className}`}
     >
       <span className="text-2xl">{icon}</span>
       <span className="text-sm text-neutral-200">{label}</span>

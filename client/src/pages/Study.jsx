@@ -22,10 +22,19 @@ function shuffle(array) {
   return arr;
 }
 
+function drawRound(pool, limit) {
+  const shuffled = shuffle(pool);
+  return limit ? shuffled.slice(0, limit) : shuffled;
+}
+
 export default function Study() {
   const [searchParams] = useSearchParams();
   const language = searchParams.get('language') || '';
   const cardIds = searchParams.get('cards') || '';
+  const practiceParam = searchParams.get('practice');
+  // Direct entry from the dashboard: "Тренировка" drills a random batch of
+  // active cards, independent of what's due today — SM-2 schedule untouched.
+  const practiceCount = practiceParam ? parseInt(practiceParam, 10) || 100 : null;
 
   const [cards, setCards] = useState(null);
   const [index, setIndex] = useState(0);
@@ -36,15 +45,34 @@ export default function Study() {
   const sessionEndedForUiRef = useRef(false);
 
   const [practiceMode, setPracticeMode] = useState(false);
+  const [practicePool, setPracticePool] = useState([]);
+  const [practiceLimit, setPracticeLimit] = useState(null);
   const [practiceCards, setPracticeCards] = useState([]);
   const [practiceIndex, setPracticeIndex] = useState(0);
   const [practiceFlipped, setPracticeFlipped] = useState(false);
 
   useEffect(() => {
+    if (practiceCount) return;
     const request = cardIds ? api.getCards({ ids: cardIds }) : api.getDueCards({ language });
     request.then(setCards).catch((e) => setError(e.message));
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [language, cardIds]);
+  }, [language, cardIds, practiceCount]);
+
+  useEffect(() => {
+    if (!practiceCount) return;
+    api
+      .getCards({ language, status: 'active' })
+      .then((pool) => {
+        setPracticePool(pool);
+        setPracticeLimit(practiceCount);
+        setPracticeCards(drawRound(pool, practiceCount));
+        setPracticeIndex(0);
+        setPracticeFlipped(false);
+        setPracticeMode(true);
+      })
+      .catch((e) => setError(e.message));
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [language, practiceCount]);
 
   useEffect(() => {
     if (!cards || cards.length === 0 || index < cards.length || sessionEndedForUiRef.current) return;
@@ -73,19 +101,22 @@ export default function Study() {
   }, [flip, practiceMode]);
 
   function startPractice() {
-    setPracticeCards(shuffle(cards));
+    setPracticePool(cards);
+    setPracticeLimit(null);
+    setPracticeCards(drawRound(cards, null));
     setPracticeIndex(0);
     setPracticeFlipped(false);
     setPracticeMode(true);
   }
 
   function nextPractice() {
+    recordCard();
     setPracticeFlipped(false);
     setPracticeIndex((i) => {
       const next = i + 1;
       if (next >= practiceCards.length) {
         // loop back around with a fresh shuffle so the drill never runs out
-        setPracticeCards(shuffle(cards));
+        setPracticeCards(drawRound(practicePool, practiceLimit));
         return 0;
       }
       return next;
@@ -125,6 +156,31 @@ export default function Study() {
   }
 
   if (error) return <div className="p-4 text-red-400">{error}</div>;
+
+  if (practiceCount) {
+    if (!practiceMode) return <div className="p-4 text-neutral-400">Загрузка…</div>;
+    if (practiceCards.length === 0) {
+      return (
+        <EmptyState
+          title="Нет карточек для тренировки"
+          subtitle="Добавьте карточки в этом языке или переключитесь на другой."
+        />
+      );
+    }
+    return (
+      <PracticeCard
+        card={practiceCards[practiceIndex]}
+        index={practiceIndex}
+        total={practiceCards.length}
+        flipped={practiceFlipped}
+        onFlip={() => setPracticeFlipped((f) => !f)}
+        onNext={nextPractice}
+        exitTo="/"
+        exitLabel="Закончить тренировку"
+      />
+    );
+  }
+
   if (!cards) return <div className="p-4 text-neutral-400">Загрузка…</div>;
 
   if (cards.length === 0) {
@@ -138,50 +194,17 @@ export default function Study() {
 
   if (index >= cards.length) {
     if (practiceMode) {
-      const pCard = practiceCards[practiceIndex];
       return (
-        <div className="p-4 max-w-lg mx-auto flex flex-col gap-4">
-          <div className="text-sm text-neutral-400 text-center">
-            Тренировка · карточка {practiceIndex + 1} из {practiceCards.length}
-          </div>
-
-          <button
-            onClick={() => setPracticeFlipped((f) => !f)}
-            className="w-full min-h-[220px] rounded-2xl border border-neutral-800 bg-neutral-900 p-6 flex flex-col items-center justify-center gap-3 text-center"
-          >
-            <span className="text-xs uppercase tracking-wide text-neutral-500">
-              {LANGUAGE_LABEL[pCard.language]} · {pCard.theme}
-            </span>
-            <span className="text-3xl font-semibold">{pCard.term}</span>
-
-            {practiceFlipped && (
-              <div className="mt-2 space-y-1 text-neutral-300">
-                <div className="text-xl">{pCard.translation_ru}</div>
-                {pCard.transcription && <div className="text-sm text-neutral-500">[{pCard.transcription}]</div>}
-                {pCard.example_sentence && (
-                  <div className="text-sm italic text-neutral-400 mt-2">{pCard.example_sentence}</div>
-                )}
-              </div>
-            )}
-            {!practiceFlipped && <span className="text-xs text-neutral-600 mt-4">нажмите или Space, чтобы перевернуть</span>}
-          </button>
-
-          {practiceFlipped && (
-            <button
-              onClick={nextPractice}
-              className="rounded-xl py-3 text-sm font-medium text-white bg-neutral-800 hover:bg-neutral-700"
-            >
-              Дальше
-            </button>
-          )}
-
-          <button
-            onClick={() => setPracticeMode(false)}
-            className="text-xs text-neutral-600 hover:text-neutral-400 self-center"
-          >
-            Закончить тренировку
-          </button>
-        </div>
+        <PracticeCard
+          card={practiceCards[practiceIndex]}
+          index={practiceIndex}
+          total={practiceCards.length}
+          flipped={practiceFlipped}
+          onFlip={() => setPracticeFlipped((f) => !f)}
+          onNext={nextPractice}
+          onExit={() => setPracticeMode(false)}
+          exitLabel="Закончить тренировку"
+        />
       );
     }
 
@@ -250,6 +273,54 @@ export default function Study() {
             Знаю досконально, больше не показывать
           </button>
         </>
+      )}
+    </div>
+  );
+}
+
+function PracticeCard({ card, index, total, flipped, onFlip, onNext, onExit, exitTo, exitLabel }) {
+  return (
+    <div className="p-4 max-w-lg mx-auto flex flex-col gap-4">
+      <div className="text-sm text-neutral-400 text-center">
+        Тренировка · карточка {index + 1} из {total}
+      </div>
+
+      <button
+        onClick={onFlip}
+        className="w-full min-h-[220px] rounded-2xl border border-neutral-800 bg-neutral-900 p-6 flex flex-col items-center justify-center gap-3 text-center"
+      >
+        <span className="text-xs uppercase tracking-wide text-neutral-500">
+          {LANGUAGE_LABEL[card.language]} · {card.theme}
+        </span>
+        <span className="text-3xl font-semibold">{card.term}</span>
+
+        {flipped && (
+          <div className="mt-2 space-y-1 text-neutral-300">
+            <div className="text-xl">{card.translation_ru}</div>
+            {card.transcription && <div className="text-sm text-neutral-500">[{card.transcription}]</div>}
+            {card.example_sentence && <div className="text-sm italic text-neutral-400 mt-2">{card.example_sentence}</div>}
+          </div>
+        )}
+        {!flipped && <span className="text-xs text-neutral-600 mt-4">нажмите или Space, чтобы перевернуть</span>}
+      </button>
+
+      {flipped && (
+        <button
+          onClick={onNext}
+          className="rounded-xl py-3 text-sm font-medium text-white bg-neutral-800 hover:bg-neutral-700"
+        >
+          Дальше
+        </button>
+      )}
+
+      {exitTo ? (
+        <Link to={exitTo} className="text-xs text-neutral-600 hover:text-neutral-400 self-center">
+          {exitLabel}
+        </Link>
+      ) : (
+        <button onClick={onExit} className="text-xs text-neutral-600 hover:text-neutral-400 self-center">
+          {exitLabel}
+        </button>
       )}
     </div>
   );
