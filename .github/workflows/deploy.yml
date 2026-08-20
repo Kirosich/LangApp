@@ -1,0 +1,39 @@
+# Deploys to the production server over SSH whenever main is updated.
+#
+# Requires 3 repository secrets (Settings -> Secrets and variables -> Actions):
+#   DEPLOY_SSH_KEY - private key (PEM) matching a public key already
+#                    authorized in ~/.ssh/authorized_keys on the server
+#   SSH_HOST       - server hostname or IP to deploy to
+#   SSH_USER       - SSH user on the server (needs permission to run
+#                    `docker compose` in the project directory)
+#
+# The server is expected to already have the repo cloned and
+# docker/docker-compose installed; this workflow just pulls the latest
+# code and rebuilds the containers.
+
+name: Deploy
+
+on:
+  push:
+    branches:
+      - main
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up SSH agent
+        uses: webfactory/ssh-agent@v0.9.0
+        with:
+          ssh-private-key: ${{ secrets.DEPLOY_SSH_KEY }}
+
+      - name: Add server to known_hosts
+        run: ssh-keyscan -H "${{ secrets.SSH_HOST }}" >> ~/.ssh/known_hosts
+
+      - name: Deploy over SSH
+        run: |
+          ssh "${{ secrets.SSH_USER }}@${{ secrets.SSH_HOST }}" \
+            "cd ~/langapp && git pull && docker compose up -d --build"
