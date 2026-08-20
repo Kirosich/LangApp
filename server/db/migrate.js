@@ -77,7 +77,31 @@ const MIGRATIONS = [
     amount INTEGER NOT NULL,
     created_at TEXT NOT NULL DEFAULT (datetime('now'))
   )`,
-  `CREATE INDEX IF NOT EXISTS idx_xp_events_created_at ON xp_events(created_at)`
+  `CREATE INDEX IF NOT EXISTS idx_xp_events_created_at ON xp_events(created_at)`,
+  `CREATE TABLE IF NOT EXISTS theory_topics (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    language TEXT NOT NULL CHECK (language IN ('kz', 'en')),
+    slug TEXT NOT NULL UNIQUE,
+    title TEXT NOT NULL,
+    level TEXT NOT NULL,
+    order_index INTEGER NOT NULL DEFAULT 0,
+    summary TEXT NOT NULL,
+    created_at TEXT NOT NULL DEFAULT (datetime('now'))
+  )`,
+  `CREATE TABLE IF NOT EXISTS theory_sections (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    topic_id INTEGER NOT NULL REFERENCES theory_topics(id) ON DELETE CASCADE,
+    section_type TEXT NOT NULL CHECK (section_type IN ('explanation', 'example', 'common_mistake', 'exercise_hint')),
+    content TEXT NOT NULL,
+    order_index INTEGER NOT NULL DEFAULT 0
+  )`,
+  `CREATE TABLE IF NOT EXISTS theory_progress (
+    topic_id INTEGER PRIMARY KEY REFERENCES theory_topics(id) ON DELETE CASCADE,
+    read_at TEXT,
+    read_count INTEGER NOT NULL DEFAULT 0
+  )`,
+  `CREATE INDEX IF NOT EXISTS idx_theory_topics_language ON theory_topics(language)`,
+  `CREATE INDEX IF NOT EXISTS idx_theory_sections_topic ON theory_sections(topic_id)`
 ];
 
 function addColumnIfMissing(db, table, column, definition) {
