@@ -1,3 +1,7 @@
-your-domain.example.com {
+secret-language-training.эфиргейм.рф {
     reverse_proxy app:3000
+}
+
+sigma-agency.us, www.sigma-agency.us {
+    reverse_proxy sigma-agency-web:80
 }

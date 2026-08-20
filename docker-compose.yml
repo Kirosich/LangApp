@@ -21,7 +21,15 @@ services:
       - caddy_config:/config
     depends_on:
       - app
+    networks:
+      - default
+      - edge
 
 volumes:
   caddy_data:
   caddy_config:
+
+networks:
+  default: {}
+  edge:
+    external: true
