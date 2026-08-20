@@ -73,8 +73,11 @@ export const api = {
   getQuiz: (params = {}) => apiFetch(withQuery('/api/quiz', params)),
   startSession: (sessionType) =>
     apiFetch('/api/sessions/start', { method: 'POST', body: JSON.stringify({ session_type: sessionType }) }),
-  endSession: (id, cardsReviewed) =>
-    apiFetch(`/api/sessions/${id}/end`, { method: 'POST', body: JSON.stringify({ cards_reviewed: cardsReviewed }) }),
+  endSession: (id, cardsReviewed, correctCount = null) =>
+    apiFetch(`/api/sessions/${id}/end`, {
+      method: 'POST',
+      body: JSON.stringify({ cards_reviewed: cardsReviewed, correct_count: correctCount })
+    }),
   getTheoryCourses: () => apiFetch('/api/theory/courses'),
   getTheoryCourse: (id) => apiFetch(`/api/theory/courses/${id}`),
   createTheoryCourse: (course) => apiFetch('/api/theory/courses', { method: 'POST', body: JSON.stringify(course) }),
@@ -92,17 +95,20 @@ export const api = {
   getGamificationSummary: () => apiFetch('/api/gamification/summary'),
   getHeatmap: (days = 90) => apiFetch(withQuery('/api/gamification/heatmap', { days })),
   getCumulative: () => apiFetch('/api/gamification/cumulative'),
-  getTopicsBreakdown: () => apiFetch('/api/gamification/topics-breakdown')
+  getTopicsBreakdown: () => apiFetch('/api/gamification/topics-breakdown'),
+  getBadges: () => apiFetch('/api/gamification/badges'),
+  getAccuracyTrend: () => apiFetch('/api/gamification/accuracy-trend'),
+  getProblemCards: () => apiFetch('/api/gamification/problem-cards')
 };
 
-export function endSessionOnUnload(id, cardsReviewed) {
+export function endSessionOnUnload(id, cardsReviewed, correctCount = null) {
   const credentials = getStoredCredentials();
   if (!credentials) return;
   fetch(`/api/sessions/${id}/end`, {
     method: 'POST',
     keepalive: true,
     headers: { Authorization: `Basic ${credentials}`, 'Content-Type': 'application/json' },
-    body: JSON.stringify({ cards_reviewed: cardsReviewed })
+    body: JSON.stringify({ cards_reviewed: cardsReviewed, correct_count: correctCount })
   }).catch(() => {});
 }
 

@@ -5,6 +5,10 @@ import LevelCard from '../components/progress/LevelCard';
 import Heatmap from '../components/progress/Heatmap';
 import CumulativeChart from '../components/progress/CumulativeChart';
 import TopicsDonut from '../components/progress/TopicsDonut';
+import BadgesGrid from '../components/progress/BadgesGrid';
+import RecordsWidget from '../components/progress/RecordsWidget';
+import AccuracyChart from '../components/progress/AccuracyChart';
+import ProblemCards from '../components/progress/ProblemCards';
 
 const LANGUAGE_TABS = [
   { value: '', label: 'Все' },
@@ -28,6 +32,9 @@ export default function Dashboard() {
   const [heatmap, setHeatmap] = useState(null);
   const [cumulative, setCumulative] = useState(null);
   const [topics, setTopics] = useState(null);
+  const [badges, setBadges] = useState(null);
+  const [accuracy, setAccuracy] = useState(null);
+  const [problemCards, setProblemCards] = useState(null);
 
   useEffect(() => {
     api.getStats({ language }).then(setStats).catch((e) => setError(e.message));
@@ -38,6 +45,9 @@ export default function Dashboard() {
     api.getHeatmap(90).then(setHeatmap).catch(() => {});
     api.getCumulative().then(setCumulative).catch(() => {});
     api.getTopicsBreakdown().then(setTopics).catch(() => {});
+    api.getBadges().then(setBadges).catch(() => {});
+    api.getAccuracyTrend().then(setAccuracy).catch(() => {});
+    api.getProblemCards().then(setProblemCards).catch(() => {});
   }, []);
 
   const actionSuffix = language ? `?language=${language}` : '';
@@ -119,6 +129,26 @@ export default function Dashboard() {
         <div>
           <h3 className="text-xs text-neutral-500 mb-2">Прогресс по темам</h3>
           {topics ? <TopicsDonut data={topics} /> : <p className="text-sm text-neutral-500">Загрузка…</p>}
+        </div>
+
+        <div>
+          <h3 className="text-xs text-neutral-500 mb-2">Бейджи</h3>
+          <BadgesGrid badges={badges} />
+        </div>
+
+        <div>
+          <h3 className="text-xs text-neutral-500 mb-2">Личные рекорды</h3>
+          <RecordsWidget summary={summary} />
+        </div>
+
+        <div>
+          <h3 className="text-xs text-neutral-500 mb-2">Точность в квизах по неделям</h3>
+          {accuracy ? <AccuracyChart data={accuracy} /> : <p className="text-sm text-neutral-500">Загрузка…</p>}
+        </div>
+
+        <div>
+          <h3 className="text-xs text-neutral-500 mb-2">Проблемные карточки</h3>
+          <ProblemCards cards={problemCards} />
         </div>
       </div>
     </div>

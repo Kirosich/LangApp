@@ -1,5 +1,6 @@
 import { Router } from 'express';
 import { db } from '../db/index.js';
+import { onSessionEnd } from '../gamification/onSessionEnd.js';
 
 export const sessionsRouter = Router();
 
@@ -18,11 +19,21 @@ sessionsRouter.post('/start', (req, res) => {
 sessionsRouter.post('/:id/end', (req, res) => {
   const { id } = req.params;
   const cardsReviewed = Number.isInteger(req.body.cards_reviewed) ? req.body.cards_reviewed : 0;
+  const correctCount = Number.isInteger(req.body.correct_count) ? req.body.correct_count : null;
 
-  const info = db
-    .prepare(`UPDATE study_sessions SET ended_at = datetime('now'), cards_reviewed = ? WHERE id = ?`)
-    .run(cardsReviewed, id);
+  const updateAndCheck = db.transaction(() => {
+    const info = db
+      .prepare(`UPDATE study_sessions SET ended_at = datetime('now'), cards_reviewed = ?, correct_count = ? WHERE id = ?`)
+      .run(cardsReviewed, correctCount, id);
 
-  if (info.changes === 0) return res.status(404).json({ error: 'Session not found' });
+    if (info.changes === 0) return false;
+
+    const session = db.prepare('SELECT * FROM study_sessions WHERE id = ?').get(id);
+    onSessionEnd(db, session);
+    return true;
+  });
+
+  const found = updateAndCheck();
+  if (!found) return res.status(404).json({ error: 'Session not found' });
   res.status(204).end();
 });

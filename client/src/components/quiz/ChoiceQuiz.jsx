@@ -11,8 +11,9 @@ export default function ChoiceQuiz({ questions, onFinish, onProgress }) {
   function choose(option) {
     if (selected) return;
     setSelected(option);
-    if (option === question.correct_answer) setScore((s) => s + 1);
-    onProgress?.();
+    const correct = option === question.correct_answer;
+    if (correct) setScore((s) => s + 1);
+    onProgress?.(correct);
   }
 
   function next() {

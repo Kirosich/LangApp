@@ -1,7 +1,7 @@
 import { Router } from 'express';
 import { db } from '../db/index.js';
-import { computeStreak } from '../db/streak.js';
 import { xpThresholdForLevel, xpToNextLevel, progressPercentToNextLevel } from '../xp/calculate.js';
+import { BADGE_DEFINITIONS } from '../gamification/badgeDefinitions.js';
 
 export const gamificationRouter = Router();
 
@@ -23,11 +23,72 @@ gamificationRouter.get('/summary', (req, res) => {
     xp_to_next_level: xpToNextLevel(stats.total_xp),
     progress_percent_to_next_level: progressPercentToNextLevel(stats.total_xp),
     next_level_threshold: xpThresholdForLevel(stats.current_level + 1),
-    longest_streak: Math.max(stats.longest_streak, computeStreak(db)),
+    longest_streak: stats.longest_streak,
     best_day_cards: stats.best_day_cards,
     best_session_minutes: stats.best_session_minutes,
     badges
   });
+});
+
+gamificationRouter.get('/badges', (req, res) => {
+  const earned = db.prepare('SELECT code, earned_at FROM badges').all();
+  const earnedMap = new Map(earned.map((b) => [b.code, b.earned_at]));
+
+  res.json(
+    BADGE_DEFINITIONS.map((badge) => ({
+      ...badge,
+      earned: earnedMap.has(badge.code),
+      earned_at: earnedMap.get(badge.code) ?? null
+    }))
+  );
+});
+
+gamificationRouter.get('/accuracy-trend', (req, res) => {
+  const rows = db
+    .prepare(
+      `SELECT strftime('%Y-%W', started_at) AS week,
+              MIN(date(started_at)) AS week_start,
+              SUM(correct_count) AS correct,
+              SUM(cards_reviewed) AS total
+       FROM study_sessions
+       WHERE ended_at IS NOT NULL AND correct_count IS NOT NULL AND session_type IN ('quiz_choice', 'quiz_typing', 'quiz_matching')
+       GROUP BY week
+       ORDER BY week ASC`
+    )
+    .all();
+
+  res.json(
+    rows.map((r) => ({
+      week_start: r.week_start,
+      accuracy_percent: r.total > 0 ? Math.round((r.correct / r.total) * 100) : 0,
+      total_questions: r.total
+    }))
+  );
+});
+
+gamificationRouter.get('/problem-cards', (req, res) => {
+  const rows = db
+    .prepare(
+      `SELECT c.*, p.easiness_factor, p.interval_days, p.repetitions, p.due_date, p.last_reviewed
+       FROM cards c
+       JOIN progress p ON p.card_id = c.id
+       WHERE p.last_reviewed IS NOT NULL
+       ORDER BY p.easiness_factor ASC
+       LIMIT 5`
+    )
+    .all();
+
+  res.json(
+    rows.map((r) => ({
+      id: r.id,
+      language: r.language,
+      term: r.term,
+      translation_ru: r.translation_ru,
+      theme: r.theme,
+      easiness_factor: r.easiness_factor,
+      repetitions: r.repetitions
+    }))
+  );
 });
 
 gamificationRouter.get('/heatmap', (req, res) => {

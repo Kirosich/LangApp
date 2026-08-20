@@ -64,7 +64,7 @@ cardsRouter.get('/due', (req, res) => {
 });
 
 cardsRouter.get('/', (req, res) => {
-  const { theme, language } = req.query;
+  const { theme, language, ids } = req.query;
   const conditions = [];
   const params = [];
 
@@ -75,6 +75,16 @@ cardsRouter.get('/', (req, res) => {
   if (language) {
     conditions.push('c.language = ?');
     params.push(language);
+  }
+  if (ids) {
+    const idList = ids
+      .split(',')
+      .map((id) => parseInt(id, 10))
+      .filter(Number.isInteger);
+    if (idList.length > 0) {
+      conditions.push(`c.id IN (${idList.map(() => '?').join(',')})`);
+      params.push(...idList);
+    }
   }
 
   const where = conditions.length ? `WHERE ${conditions.join(' AND ')}` : '';

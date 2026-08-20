@@ -35,10 +35,11 @@ export default function MatchingQuiz({ rounds, onFinish, onProgress }) {
     if (termCard.translation_ru === text && termCard.card_id === cardId) {
       setMatchedIds((prev) => new Set(prev).add(cardId));
       setSelectedTermId(null);
-      onProgress?.();
+      onProgress?.(true);
     } else {
       setMistakes((m) => m + 1);
       setWrongPair({ termId: selectedTermId, cardId });
+      onProgress?.(false);
       setTimeout(() => {
         setWrongPair(null);
         setSelectedTermId(null);

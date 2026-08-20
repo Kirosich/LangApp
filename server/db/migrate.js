@@ -74,12 +74,20 @@ const MIGRATIONS = [
   )`
 ];
 
+function addColumnIfMissing(db, table, column, definition) {
+  const columns = db.prepare(`PRAGMA table_info(${table})`).all();
+  if (!columns.some((c) => c.name === column)) {
+    db.exec(`ALTER TABLE ${table} ADD COLUMN ${column} ${definition}`);
+  }
+}
+
 export function runMigrations(db) {
   db.pragma('foreign_keys = ON');
   const migrate = db.transaction(() => {
     for (const sql of MIGRATIONS) {
       db.exec(sql);
     }
+    addColumnIfMissing(db, 'study_sessions', 'correct_count', 'INTEGER');
   });
   migrate();
 }

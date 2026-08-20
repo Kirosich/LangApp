@@ -16,7 +16,7 @@ export default function TypingQuiz({ questions, onFinish, onProgress }) {
     const correct = isCloseEnough(value, question.expected_answer, 1);
     setChecked(correct ? 'correct' : 'incorrect');
     if (correct) setScore((s) => s + 1);
-    onProgress?.();
+    onProgress?.(correct);
   }
 
   function next() {

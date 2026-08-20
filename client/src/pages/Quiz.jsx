@@ -33,6 +33,7 @@ export default function Quiz() {
 
   const sessionIdRef = useRef(null);
   const cardsReviewedRef = useRef(0);
+  const correctCountRef = useRef(0);
   const sessionEndedRef = useRef(true);
 
   useEffect(() => {
@@ -42,13 +43,13 @@ export default function Quiz() {
   function endActiveSession() {
     if (sessionEndedRef.current || !sessionIdRef.current) return;
     sessionEndedRef.current = true;
-    api.endSession(sessionIdRef.current, cardsReviewedRef.current).catch(() => {});
+    api.endSession(sessionIdRef.current, cardsReviewedRef.current, correctCountRef.current).catch(() => {});
   }
 
   useEffect(() => {
     function handlePageHide() {
       if (!sessionEndedRef.current && sessionIdRef.current) {
-        endSessionOnUnload(sessionIdRef.current, cardsReviewedRef.current);
+        endSessionOnUnload(sessionIdRef.current, cardsReviewedRef.current, correctCountRef.current);
       }
     }
     window.addEventListener('pagehide', handlePageHide);
@@ -68,6 +69,7 @@ export default function Quiz() {
       setStage('playing');
 
       cardsReviewedRef.current = 0;
+      correctCountRef.current = 0;
       sessionEndedRef.current = false;
       const session = await api.startSession(SESSION_TYPE_FOR_QUIZ[type]);
       sessionIdRef.current = session.id;
@@ -78,8 +80,9 @@ export default function Quiz() {
     }
   }
 
-  function progress() {
+  function progress(isCorrect) {
     cardsReviewedRef.current += 1;
+    if (isCorrect) correctCountRef.current += 1;
   }
 
   function finish(score) {

@@ -15,6 +15,7 @@ const LANGUAGE_LABEL = { kz: 'Казахский', en: 'English' };
 export default function Study() {
   const [searchParams] = useSearchParams();
   const language = searchParams.get('language') || '';
+  const cardIds = searchParams.get('cards') || '';
 
   const [cards, setCards] = useState(null);
   const [index, setIndex] = useState(0);
@@ -24,9 +25,10 @@ export default function Study() {
   const { recordCard } = useStudySession('study');
 
   useEffect(() => {
-    api.getDueCards({ language }).then(setCards).catch((e) => setError(e.message));
+    const request = cardIds ? api.getCards({ ids: cardIds }) : api.getDueCards({ language });
+    request.then(setCards).catch((e) => setError(e.message));
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [language]);
+  }, [language, cardIds]);
 
   const flip = useCallback(() => setFlipped((f) => !f), []);
 
