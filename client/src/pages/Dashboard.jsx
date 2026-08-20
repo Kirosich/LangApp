@@ -9,6 +9,8 @@ import BadgesGrid from '../components/progress/BadgesGrid';
 import RecordsWidget from '../components/progress/RecordsWidget';
 import AccuracyChart from '../components/progress/AccuracyChart';
 import ProblemCards from '../components/progress/ProblemCards';
+import Milestones from '../components/progress/Milestones';
+import WeeklyRecap from '../components/progress/WeeklyRecap';
 
 const LANGUAGE_TABS = [
   { value: '', label: 'Все' },
@@ -35,6 +37,8 @@ export default function Dashboard() {
   const [badges, setBadges] = useState(null);
   const [accuracy, setAccuracy] = useState(null);
   const [problemCards, setProblemCards] = useState(null);
+  const [milestones, setMilestones] = useState(null);
+  const [weeklyRecap, setWeeklyRecap] = useState(null);
 
   useEffect(() => {
     api.getStats({ language }).then(setStats).catch((e) => setError(e.message));
@@ -48,6 +52,8 @@ export default function Dashboard() {
     api.getBadges().then(setBadges).catch(() => {});
     api.getAccuracyTrend().then(setAccuracy).catch(() => {});
     api.getProblemCards().then(setProblemCards).catch(() => {});
+    api.getMilestones().then(setMilestones).catch(() => {});
+    api.getWeeklyRecap().then(setWeeklyRecap).catch(() => {});
   }, []);
 
   const actionSuffix = language ? `?language=${language}` : '';
@@ -69,6 +75,8 @@ export default function Dashboard() {
           </button>
         ))}
       </div>
+
+      <WeeklyRecap recap={weeklyRecap} />
 
       <div className="grid grid-cols-2 gap-3">
         <StatCard label="К повторению сегодня" value={stats?.due_today ?? '—'} accent />
@@ -115,6 +123,11 @@ export default function Dashboard() {
         <h2 className="text-sm font-semibold text-neutral-300 pt-2">Прогресс</h2>
 
         <LevelCard summary={summary} />
+
+        <div>
+          <h3 className="text-xs text-neutral-500 mb-2">Что ты уже можешь</h3>
+          <Milestones milestones={milestones} />
+        </div>
 
         <div>
           <h3 className="text-xs text-neutral-500 mb-2">Активность за 90 дней</h3>

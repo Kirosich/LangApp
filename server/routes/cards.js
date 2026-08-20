@@ -180,6 +180,7 @@ cardsRouter.post('/:id/review', (req, res) => {
     const leveledUp = newLevel > stats.current_level;
 
     db.prepare('UPDATE user_stats SET total_xp = ?, current_level = ? WHERE id = 1').run(newTotalXp, newLevel);
+    db.prepare('INSERT INTO xp_events (amount) VALUES (?)').run(xpGained);
 
     return { xpGained, leveledUp, totalXp: newTotalXp, currentLevel: newLevel };
   })();

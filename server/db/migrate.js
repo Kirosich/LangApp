@@ -71,7 +71,13 @@ const MIGRATIONS = [
     id INTEGER PRIMARY KEY AUTOINCREMENT,
     code TEXT NOT NULL UNIQUE,
     earned_at TEXT NOT NULL DEFAULT (datetime('now'))
-  )`
+  )`,
+  `CREATE TABLE IF NOT EXISTS xp_events (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    amount INTEGER NOT NULL,
+    created_at TEXT NOT NULL DEFAULT (datetime('now'))
+  )`,
+  `CREATE INDEX IF NOT EXISTS idx_xp_events_created_at ON xp_events(created_at)`
 ];
 
 function addColumnIfMissing(db, table, column, definition) {

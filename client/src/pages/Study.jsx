@@ -1,7 +1,8 @@
-import { useEffect, useState, useCallback } from 'react';
+import { useEffect, useState, useCallback, useRef } from 'react';
 import { Link, useSearchParams } from 'react-router-dom';
 import { api } from '../api/client';
 import { useStudySession } from '../hooks/useStudySession';
+import { celebrateLevelUp, celebrateBadge } from '../utils/confetti';
 
 const RATINGS = [
   { label: 'Заново', quality: 1, className: 'bg-red-600 hover:bg-red-500' },
@@ -22,13 +23,23 @@ export default function Study() {
   const [flipped, setFlipped] = useState(false);
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState('');
-  const { recordCard } = useStudySession('study');
+  const { recordCard, endNow } = useStudySession('study');
+  const sessionEndedForUiRef = useRef(false);
 
   useEffect(() => {
     const request = cardIds ? api.getCards({ ids: cardIds }) : api.getDueCards({ language });
     request.then(setCards).catch((e) => setError(e.message));
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [language, cardIds]);
+
+  useEffect(() => {
+    if (!cards || cards.length === 0 || index < cards.length || sessionEndedForUiRef.current) return;
+    sessionEndedForUiRef.current = true;
+    endNow().then((result) => {
+      if (result?.newly_earned_badges?.length) celebrateBadge();
+    });
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [cards, index]);
 
   const flip = useCallback(() => setFlipped((f) => !f), []);
 
@@ -47,8 +58,9 @@ export default function Study() {
     const card = cards[index];
     setSubmitting(true);
     try {
-      await api.reviewCard(card.id, quality);
+      const result = await api.reviewCard(card.id, quality);
       recordCard();
+      if (result.leveled_up) celebrateLevelUp();
       setFlipped(false);
       setIndex((i) => i + 1);
     } catch (e) {

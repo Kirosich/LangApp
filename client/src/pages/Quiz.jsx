@@ -4,6 +4,7 @@ import { api, endSessionOnUnload } from '../api/client';
 import ChoiceQuiz from '../components/quiz/ChoiceQuiz';
 import TypingQuiz from '../components/quiz/TypingQuiz';
 import MatchingQuiz from '../components/quiz/MatchingQuiz';
+import { celebrateBadge } from '../utils/confetti';
 
 const TYPE_OPTIONS = [
   { value: 'choice', label: 'Выбор варианта' },
@@ -41,9 +42,9 @@ export default function Quiz() {
   }, []);
 
   function endActiveSession() {
-    if (sessionEndedRef.current || !sessionIdRef.current) return;
+    if (sessionEndedRef.current || !sessionIdRef.current) return null;
     sessionEndedRef.current = true;
-    api.endSession(sessionIdRef.current, cardsReviewedRef.current, correctCountRef.current).catch(() => {});
+    return api.endSession(sessionIdRef.current, cardsReviewedRef.current, correctCountRef.current).catch(() => null);
   }
 
   useEffect(() => {
@@ -86,7 +87,9 @@ export default function Quiz() {
   }
 
   function finish(score) {
-    endActiveSession();
+    endActiveSession()?.then((result) => {
+      if (result?.newly_earned_badges?.length) celebrateBadge();
+    });
     setResult(score);
     setStage('result');
   }

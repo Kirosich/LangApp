@@ -4,6 +4,7 @@ import { api, endSessionOnUnload } from '../api/client';
 export function useStudySession(sessionType) {
   const sessionIdRef = useRef(null);
   const countRef = useRef(0);
+  const endedRef = useRef(false);
 
   useEffect(() => {
     let cancelled = false;
@@ -22,16 +23,19 @@ export function useStudySession(sessionType) {
       .catch(() => {});
 
     function handlePageHide() {
-      if (sessionIdRef.current) endSessionOnUnload(sessionIdRef.current, countRef.current);
+      if (!endedRef.current && sessionIdRef.current) {
+        endSessionOnUnload(sessionIdRef.current, countRef.current);
+        endedRef.current = true;
+      }
     }
     window.addEventListener('pagehide', handlePageHide);
 
     return () => {
       cancelled = true;
       window.removeEventListener('pagehide', handlePageHide);
-      if (sessionIdRef.current) {
+      if (!endedRef.current && sessionIdRef.current) {
         api.endSession(sessionIdRef.current, countRef.current).catch(() => {});
-        sessionIdRef.current = null;
+        endedRef.current = true;
       }
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -41,5 +45,15 @@ export function useStudySession(sessionType) {
     countRef.current += 1;
   }
 
-  return { recordCard };
+  async function endNow() {
+    if (endedRef.current || !sessionIdRef.current) return null;
+    endedRef.current = true;
+    try {
+      return await api.endSession(sessionIdRef.current, countRef.current);
+    } catch {
+      return null;
+    }
+  }
+
+  return { recordCard, endNow };
 }

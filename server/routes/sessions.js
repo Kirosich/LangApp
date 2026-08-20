@@ -1,6 +1,7 @@
 import { Router } from 'express';
 import { db } from '../db/index.js';
 import { onSessionEnd } from '../gamification/onSessionEnd.js';
+import { BADGE_DEFINITIONS } from '../gamification/badgeDefinitions.js';
 
 export const sessionsRouter = Router();
 
@@ -26,14 +27,15 @@ sessionsRouter.post('/:id/end', (req, res) => {
       .prepare(`UPDATE study_sessions SET ended_at = datetime('now'), cards_reviewed = ?, correct_count = ? WHERE id = ?`)
       .run(cardsReviewed, correctCount, id);
 
-    if (info.changes === 0) return false;
+    if (info.changes === 0) return null;
 
     const session = db.prepare('SELECT * FROM study_sessions WHERE id = ?').get(id);
-    onSessionEnd(db, session);
-    return true;
+    return onSessionEnd(db, session);
   });
 
-  const found = updateAndCheck();
-  if (!found) return res.status(404).json({ error: 'Session not found' });
-  res.status(204).end();
+  const newlyEarnedCodes = updateAndCheck();
+  if (newlyEarnedCodes === null) return res.status(404).json({ error: 'Session not found' });
+
+  const newlyEarnedBadges = newlyEarnedCodes.map((code) => BADGE_DEFINITIONS.find((b) => b.code === code));
+  res.json({ newly_earned_badges: newlyEarnedBadges });
 });

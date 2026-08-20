@@ -98,7 +98,9 @@ export const api = {
   getTopicsBreakdown: () => apiFetch('/api/gamification/topics-breakdown'),
   getBadges: () => apiFetch('/api/gamification/badges'),
   getAccuracyTrend: () => apiFetch('/api/gamification/accuracy-trend'),
-  getProblemCards: () => apiFetch('/api/gamification/problem-cards')
+  getProblemCards: () => apiFetch('/api/gamification/problem-cards'),
+  getMilestones: () => apiFetch('/api/gamification/milestones'),
+  getWeeklyRecap: () => apiFetch('/api/gamification/weekly-recap')
 };
 
 export function endSessionOnUnload(id, cardsReviewed, correctCount = null) {

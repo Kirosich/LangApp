@@ -4,8 +4,11 @@ export default function LevelCard({ summary }) {
   return (
     <div className="rounded-xl border border-indigo-500/40 bg-indigo-500/10 p-4">
       <div className="flex items-center justify-between mb-2">
-        <span className="text-lg font-semibold">Уровень {summary.current_level}</span>
-        <span className="text-sm text-neutral-400">{summary.total_xp} XP</span>
+        <span className="text-lg font-semibold">
+          {summary.current_level}. {summary.level_name?.kz}
+          {summary.level_name?.ru && <span className="text-xs text-neutral-500 font-normal"> ({summary.level_name.ru})</span>}
+        </span>
+        <span className="text-sm text-neutral-400 shrink-0">{summary.total_xp} XP</span>
       </div>
       <div className="h-2 rounded-full bg-neutral-800 overflow-hidden">
         <div
