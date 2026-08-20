@@ -46,8 +46,19 @@ const SELECT_WITH_PROGRESS = `
 `;
 
 cardsRouter.get('/due', (req, res) => {
+  const { language } = req.query;
   const today = new Date().toISOString().slice(0, 10);
-  const rows = db.prepare(`${SELECT_WITH_PROGRESS} WHERE p.due_date <= ? ORDER BY p.due_date ASC`).all(today);
+  const conditions = ['p.due_date <= ?'];
+  const params = [today];
+
+  if (language) {
+    conditions.push('c.language = ?');
+    params.push(language);
+  }
+
+  const rows = db
+    .prepare(`${SELECT_WITH_PROGRESS} WHERE ${conditions.join(' AND ')} ORDER BY p.due_date ASC`)
+    .all(...params);
   res.json(rows.map(cardWithProgress));
 });
 

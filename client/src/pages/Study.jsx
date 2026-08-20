@@ -1,5 +1,5 @@
 import { useEffect, useState, useCallback } from 'react';
-import { Link } from 'react-router-dom';
+import { Link, useSearchParams } from 'react-router-dom';
 import { api } from '../api/client';
 
 const RATINGS = [
@@ -12,6 +12,9 @@ const RATINGS = [
 const LANGUAGE_LABEL = { kz: 'Казахский', en: 'English' };
 
 export default function Study() {
+  const [searchParams] = useSearchParams();
+  const language = searchParams.get('language') || '';
+
   const [cards, setCards] = useState(null);
   const [index, setIndex] = useState(0);
   const [flipped, setFlipped] = useState(false);
@@ -19,8 +22,9 @@ export default function Study() {
   const [error, setError] = useState('');
 
   useEffect(() => {
-    api.getDueCards().then(setCards).catch((e) => setError(e.message));
-  }, []);
+    api.getDueCards({ language }).then(setCards).catch((e) => setError(e.message));
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [language]);
 
   const flip = useCallback(() => setFlipped((f) => !f), []);
 

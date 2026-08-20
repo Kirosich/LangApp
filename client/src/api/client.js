@@ -56,23 +56,21 @@ export async function verifyCredentials(username, password) {
   return true;
 }
 
+function withQuery(path, params = {}) {
+  const qs = new URLSearchParams(Object.fromEntries(Object.entries(params).filter(([, v]) => v)));
+  const suffix = qs.toString() ? `?${qs}` : '';
+  return `${path}${suffix}`;
+}
+
 export const api = {
-  getStats: () => apiFetch('/api/stats'),
-  getDueCards: () => apiFetch('/api/cards/due'),
-  getCards: (params = {}) => {
-    const qs = new URLSearchParams(Object.fromEntries(Object.entries(params).filter(([, v]) => v)));
-    const suffix = qs.toString() ? `?${qs}` : '';
-    return apiFetch(`/api/cards${suffix}`);
-  },
+  getStats: (params = {}) => apiFetch(withQuery('/api/stats', params)),
+  getDueCards: (params = {}) => apiFetch(withQuery('/api/cards/due', params)),
+  getCards: (params = {}) => apiFetch(withQuery('/api/cards', params)),
   createCard: (card) => apiFetch('/api/cards', { method: 'POST', body: JSON.stringify(card) }),
   updateCard: (id, card) => apiFetch(`/api/cards/${id}`, { method: 'PUT', body: JSON.stringify(card) }),
   deleteCard: (id) => apiFetch(`/api/cards/${id}`, { method: 'DELETE' }),
   reviewCard: (id, quality) => apiFetch(`/api/cards/${id}/review`, { method: 'POST', body: JSON.stringify({ quality }) }),
-  getQuiz: (params = {}) => {
-    const qs = new URLSearchParams(Object.fromEntries(Object.entries(params).filter(([, v]) => v)));
-    const suffix = qs.toString() ? `?${qs}` : '';
-    return apiFetch(`/api/quiz${suffix}`);
-  }
+  getQuiz: (params = {}) => apiFetch(withQuery('/api/quiz', params))
 };
 
 export { ApiError };

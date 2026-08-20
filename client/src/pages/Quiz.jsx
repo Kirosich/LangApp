@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react';
-import { Link } from 'react-router-dom';
+import { Link, useSearchParams } from 'react-router-dom';
 import { api } from '../api/client';
 import ChoiceQuiz from '../components/quiz/ChoiceQuiz';
 import TypingQuiz from '../components/quiz/TypingQuiz';
@@ -12,11 +12,13 @@ const TYPE_OPTIONS = [
 ];
 
 export default function Quiz() {
+  const [searchParams] = useSearchParams();
+
   const [stage, setStage] = useState('settings'); // settings | playing | result
   const [themes, setThemes] = useState([]);
   const [type, setType] = useState('choice');
   const [theme, setTheme] = useState('');
-  const [language, setLanguage] = useState('');
+  const [language, setLanguage] = useState(searchParams.get('language') || '');
   const [count, setCount] = useState(10);
   const [quizData, setQuizData] = useState(null);
   const [result, setResult] = useState(null);

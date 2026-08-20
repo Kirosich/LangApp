@@ -2,16 +2,41 @@ import { useEffect, useState } from 'react';
 import { Link } from 'react-router-dom';
 import { api } from '../api/client';
 
+const LANGUAGE_TABS = [
+  { value: '', label: 'Все' },
+  { value: 'kz', label: 'Казахский' },
+  { value: 'en', label: 'English' }
+];
+
 export default function Dashboard() {
   const [stats, setStats] = useState(null);
   const [error, setError] = useState('');
+  const [language, setLanguage] = useState('');
 
   useEffect(() => {
-    api.getStats().then(setStats).catch((e) => setError(e.message));
-  }, []);
+    api.getStats({ language }).then(setStats).catch((e) => setError(e.message));
+  }, [language]);
+
+  const actionSuffix = language ? `?language=${language}` : '';
 
   return (
     <div className="p-4 max-w-lg mx-auto space-y-6">
+      <div className="flex gap-2">
+        {LANGUAGE_TABS.map((tab) => (
+          <button
+            key={tab.value}
+            onClick={() => setLanguage(tab.value)}
+            className={`flex-1 rounded-lg px-3 py-2 text-sm font-medium transition-colors ${
+              language === tab.value
+                ? 'bg-indigo-600 text-white'
+                : 'bg-neutral-900 text-neutral-400 border border-neutral-800 hover:bg-neutral-800'
+            }`}
+          >
+            {tab.label}
+          </button>
+        ))}
+      </div>
+
       <div className="grid grid-cols-2 gap-3">
         <StatCard label="К повторению сегодня" value={stats?.due_today ?? '—'} accent />
         <StatCard label="Streak" value={stats ? `${stats.streak_days} 🔥` : '—'} />
@@ -22,8 +47,8 @@ export default function Dashboard() {
       {error && <p className="text-sm text-red-400">{error}</p>}
 
       <div className="grid grid-cols-2 gap-3">
-        <ActionButton to="/study" label="Учить" icon="📚" />
-        <ActionButton to="/quiz" label="Квиз" icon="🎯" />
+        <ActionButton to={`/study${actionSuffix}`} label="Учить" icon="📚" />
+        <ActionButton to={`/quiz${actionSuffix}`} label="Квиз" icon="🎯" />
         <ActionButton to="/cards/new" label="Добавить карточку" icon="➕" />
         <ActionButton to="/browse" label="Все карточки" icon="🗂️" />
       </div>

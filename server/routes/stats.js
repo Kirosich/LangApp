@@ -30,13 +30,32 @@ function computeStreak() {
 }
 
 statsRouter.get('/', (req, res) => {
+  const { language } = req.query;
   const today = new Date().toISOString().slice(0, 10);
 
-  const totalCards = db.prepare('SELECT COUNT(*) AS count FROM cards').get().count;
-  const dueToday = db.prepare('SELECT COUNT(*) AS count FROM progress WHERE due_date <= ?').get(today).count;
+  const cardConditions = [];
+  const cardParams = [];
+  if (language) {
+    cardConditions.push('language = ?');
+    cardParams.push(language);
+  }
+  const cardWhere = cardConditions.length ? `WHERE ${cardConditions.join(' AND ')}` : '';
+
+  const totalCards = db.prepare(`SELECT COUNT(*) AS count FROM cards ${cardWhere}`).get(...cardParams).count;
+
+  const dueConditions = ['p.due_date <= ?'];
+  const dueParams = [today];
+  if (language) {
+    dueConditions.push('c.language = ?');
+    dueParams.push(language);
+  }
+  const dueToday = db
+    .prepare(`SELECT COUNT(*) AS count FROM progress p JOIN cards c ON c.id = p.card_id WHERE ${dueConditions.join(' AND ')}`)
+    .get(...dueParams).count;
+
   const byTheme = db
-    .prepare('SELECT theme, COUNT(*) AS count FROM cards GROUP BY theme ORDER BY count DESC')
-    .all();
+    .prepare(`SELECT theme, COUNT(*) AS count FROM cards ${cardWhere} GROUP BY theme ORDER BY count DESC`)
+    .all(...cardParams);
 
   res.json({
     total_cards: totalCards,
