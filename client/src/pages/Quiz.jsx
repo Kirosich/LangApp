@@ -1,0 +1,183 @@
+import { useEffect, useState } from 'react';
+import { Link } from 'react-router-dom';
+import { api } from '../api/client';
+import ChoiceQuiz from '../components/quiz/ChoiceQuiz';
+import TypingQuiz from '../components/quiz/TypingQuiz';
+import MatchingQuiz from '../components/quiz/MatchingQuiz';
+
+const TYPE_OPTIONS = [
+  { value: 'choice', label: 'Выбор варианта' },
+  { value: 'typing', label: 'Ввод с клавиатуры' },
+  { value: 'matching', label: 'Сопоставление пар' }
+];
+
+export default function Quiz() {
+  const [stage, setStage] = useState('settings'); // settings | playing | result
+  const [themes, setThemes] = useState([]);
+  const [type, setType] = useState('choice');
+  const [theme, setTheme] = useState('');
+  const [language, setLanguage] = useState('');
+  const [count, setCount] = useState(10);
+  const [quizData, setQuizData] = useState(null);
+  const [result, setResult] = useState(null);
+  const [error, setError] = useState('');
+  const [loading, setLoading] = useState(false);
+
+  useEffect(() => {
+    api.getStats().then((s) => setThemes(s.by_theme.map((t) => t.theme))).catch(() => {});
+  }, []);
+
+  async function start(e) {
+    e.preventDefault();
+    setLoading(true);
+    setError('');
+    try {
+      const data = await api.getQuiz({ type, theme, language, count });
+      setQuizData(data);
+      setStage('playing');
+    } catch (e) {
+      setError(e.message);
+    } finally {
+      setLoading(false);
+    }
+  }
+
+  function finish(score) {
+    setResult(score);
+    setStage('result');
+  }
+
+  function restart() {
+    setStage('settings');
+    setQuizData(null);
+    setResult(null);
+  }
+
+  if (stage === 'result') {
+    const total = quizData.type === 'matching' ? quizData.rounds.flat().length : quizData.questions.length;
+    return (
+      <div className="p-4 max-w-lg mx-auto text-center flex flex-col items-center gap-3 mt-16">
+        <div className="text-2xl font-semibold">Результат</div>
+        <div className="text-4xl font-bold text-indigo-400">
+          {result} / {total}
+        </div>
+        <div className="flex gap-2 mt-4">
+          <button onClick={restart} className="rounded-lg bg-neutral-800 hover:bg-neutral-700 px-4 py-2 text-sm">
+            Новый квиз
+          </button>
+          <Link to="/" className="rounded-lg bg-neutral-800 hover:bg-neutral-700 px-4 py-2 text-sm">
+            На дашборд
+          </Link>
+        </div>
+      </div>
+    );
+  }
+
+  if (stage === 'playing') {
+    if (quizData.type === 'choice' && quizData.questions.length > 0) {
+      return (
+        <div className="p-4 max-w-lg mx-auto">
+          <ChoiceQuiz questions={quizData.questions} onFinish={finish} />
+        </div>
+      );
+    }
+    if (quizData.type === 'typing' && quizData.questions.length > 0) {
+      return (
+        <div className="p-4 max-w-lg mx-auto">
+          <TypingQuiz questions={quizData.questions} onFinish={finish} />
+        </div>
+      );
+    }
+    if (quizData.type === 'matching' && quizData.rounds.length > 0) {
+      return (
+        <div className="p-4 max-w-lg mx-auto">
+          <MatchingQuiz rounds={quizData.rounds} onFinish={finish} />
+        </div>
+      );
+    }
+    return (
+      <div className="p-4 max-w-lg mx-auto text-center mt-16">
+        <div className="text-neutral-400 mb-4">Недостаточно карточек для этого квиза.</div>
+        <button onClick={restart} className="rounded-lg bg-neutral-800 hover:bg-neutral-700 px-4 py-2 text-sm">
+          Назад
+        </button>
+      </div>
+    );
+  }
+
+  return (
+    <div className="p-4 max-w-lg mx-auto">
+      <h1 className="text-lg font-semibold mb-4">Настройки квиза</h1>
+      <form onSubmit={start} className="space-y-4">
+        <div>
+          <label className="block text-sm text-neutral-400 mb-1">Тип</label>
+          <div className="grid grid-cols-1 gap-2">
+            {TYPE_OPTIONS.map((opt) => (
+              <button
+                type="button"
+                key={opt.value}
+                onClick={() => setType(opt.value)}
+                className={`rounded-lg border px-3 py-2 text-left text-sm transition-colors ${
+                  type === opt.value ? 'border-indigo-500 bg-indigo-500/20' : 'border-neutral-800 bg-neutral-900'
+                }`}
+              >
+                {opt.label}
+              </button>
+            ))}
+          </div>
+        </div>
+
+        <div>
+          <label className="block text-sm text-neutral-400 mb-1">Язык</label>
+          <select
+            value={language}
+            onChange={(e) => setLanguage(e.target.value)}
+            className="w-full rounded-lg bg-neutral-900 border border-neutral-800 px-3 py-2"
+          >
+            <option value="">Оба</option>
+            <option value="kz">Казахский</option>
+            <option value="en">English</option>
+          </select>
+        </div>
+
+        <div>
+          <label className="block text-sm text-neutral-400 mb-1">Тема</label>
+          <select
+            value={theme}
+            onChange={(e) => setTheme(e.target.value)}
+            className="w-full rounded-lg bg-neutral-900 border border-neutral-800 px-3 py-2"
+          >
+            <option value="">Все темы</option>
+            {themes.map((t) => (
+              <option key={t} value={t}>
+                {t}
+              </option>
+            ))}
+          </select>
+        </div>
+
+        <div>
+          <label className="block text-sm text-neutral-400 mb-1">Количество вопросов</label>
+          <input
+            type="number"
+            min={1}
+            max={50}
+            value={count}
+            onChange={(e) => setCount(e.target.value)}
+            className="w-full rounded-lg bg-neutral-900 border border-neutral-800 px-3 py-2"
+          />
+        </div>
+
+        {error && <p className="text-sm text-red-400">{error}</p>}
+
+        <button
+          type="submit"
+          disabled={loading}
+          className="w-full rounded-xl bg-indigo-600 hover:bg-indigo-500 disabled:opacity-50 py-3 font-medium"
+        >
+          {loading ? 'Загрузка…' : 'Начать квиз'}
+        </button>
+      </form>
+    </div>
+  );
+}
