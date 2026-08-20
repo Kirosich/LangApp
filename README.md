@@ -72,6 +72,8 @@ langapp/
 │       ├── hooks/        # useStudySession — трекинг времени сессии
 │       └── context/      # AuthContext
 ├── data/             # SQLite-файл (app.db), не в git
+├── scripts/
+│   └── backup-db.sh  # хостовый враппер для cron — ночной бэкап БД
 ├── Dockerfile        # multi-stage: сборка client -> прод-образ с API
 ├── docker-compose.yml
 └── .github/workflows/deploy.yml
@@ -129,6 +131,29 @@ npm test                # unit-тесты алгоритма SM-2
    и т.п.) здесь не нужен и раньше конфликтовал за порты 80/443 с этим же
    nginx (см. «Обновления» ниже).
 
+## Бэкапы БД
+
+Ежедневно в 04:00 по времени сервера (cron пользователя `deploy` на
+хосте) запускается `scripts/backup-db.sh` → внутри контейнера
+`server/scripts/backup-db.js` снимает атомарный снапшот `data/app.db`
+через `better-sqlite3`'s `.backup()` (SQLite Online Backup API — безопасно
+на «горячую» базу, в отличие от простого `cp`), проверяет, что снимок
+читается, и хранит последние 14 копий в `/home/deploy/backups/langapp/`
+(вне репозитория и вне `data/`, на хосте).
+
+Ручной запуск / восстановление:
+
+```bash
+./scripts/backup-db.sh                          # снять бэкап вручную
+docker exec langapp-app-1 node -e "              # проверить снимок
+  const Database = require('better-sqlite3');
+  const db = new Database('/app/backups/app-2026-08-20.db', { readonly: true });
+  console.log(db.prepare('SELECT COUNT(*) FROM cards').get());
+"
+# восстановление — остановить контейнер, подменить data/app.db файлом
+# из /home/deploy/backups/langapp/, запустить контейнер снова
+```
+
 ## Автодеплой (GitHub Actions)
 
 `.github/workflows/deploy.yml` запускается при каждом push в `master`:
@@ -184,3 +209,9 @@ Secrets and variables → Actions**:
   умеет всё нужное сам (свой vhost с Let's Encrypt для домена langapp,
   проксирует на `127.0.0.1:3001`) — Caddy оказался лишним и конфликтующим
   слоем, полностью убран из `docker-compose.yml`.
+- **2026-08-20** — автоматические ночные бэкапы БД: `scripts/backup-db.sh`
+  через cron (04:00 по времени сервера) вызывает `server/scripts/backup-db.js`
+  внутри контейнера — атомарный снимок через `better-sqlite3`'s `.backup()`
+  (тот же SQLite Online Backup API, что и CLI `.backup`), хранит последние
+  14 снимков в `/home/deploy/backups/langapp/`, каждый раз проверяет, что
+  бэкап реально читается.
