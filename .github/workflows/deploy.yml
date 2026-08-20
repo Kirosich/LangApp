@@ -1,4 +1,4 @@
-# Deploys to the production server over SSH whenever main is updated.
+# Deploys to the production server over SSH whenever master is updated.
 #
 # Requires 3 repository secrets (Settings -> Secrets and variables -> Actions):
 #   DEPLOY_SSH_KEY - private key (PEM) matching a public key already
@@ -16,7 +16,7 @@ name: Deploy
 on:
   push:
     branches:
-      - main
+      - master
 
 jobs:
   deploy:
