@@ -9,6 +9,8 @@
     "start": "node index.js",
     "seed": "node seed.js",
     "seed:theory": "node seed-theory.js",
+    "seed:theory-kz": "node seed-theory-kz.js",
+    "seed:theory-en": "node seed-theory-en.js",
     "test": "vitest run"
   },
   "dependencies": {
