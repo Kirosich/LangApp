@@ -2,6 +2,7 @@ import { useEffect, useState, useCallback, useRef } from 'react';
 import { Link, useSearchParams } from 'react-router-dom';
 import { api } from '../api/client';
 import { useStudySession } from '../hooks/useStudySession';
+import { useTheoryThemeLinks } from '../hooks/useTheoryThemeLinks';
 import { celebrateLevelUp, celebrateBadge } from '../utils/confetti';
 
 const RATINGS = [
@@ -31,7 +32,9 @@ export default function Study() {
   const [searchParams] = useSearchParams();
   const language = searchParams.get('language') || '';
   const cardIds = searchParams.get('cards') || '';
+  const themeFilter = searchParams.get('theme') || '';
   const practiceParam = searchParams.get('practice');
+  const themeLinks = useTheoryThemeLinks();
   // Direct entry from the dashboard: "Тренировка" drills a random batch of
   // active cards, independent of what's due today — SM-2 schedule untouched.
   const practiceCount = practiceParam ? parseInt(practiceParam, 10) || 100 : null;
@@ -53,10 +56,10 @@ export default function Study() {
 
   useEffect(() => {
     if (practiceCount) return;
-    const request = cardIds ? api.getCards({ ids: cardIds }) : api.getDueCards({ language });
+    const request = cardIds ? api.getCards({ ids: cardIds }) : api.getDueCards({ language, theme: themeFilter });
     request.then(setCards).catch((e) => setError(e.message));
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [language, cardIds, practiceCount]);
+  }, [language, cardIds, themeFilter, practiceCount]);
 
   useEffect(() => {
     if (!practiceCount) return;
@@ -177,6 +180,7 @@ export default function Study() {
         onNext={nextPractice}
         exitTo="/"
         exitLabel="Закончить тренировку"
+        themeLinks={themeLinks}
       />
     );
   }
@@ -204,6 +208,7 @@ export default function Study() {
           onNext={nextPractice}
           onExit={() => setPracticeMode(false)}
           exitLabel="Закончить тренировку"
+          themeLinks={themeLinks}
         />
       );
     }
@@ -238,6 +243,7 @@ export default function Study() {
       >
         <span className="text-xs uppercase tracking-wide text-neutral-500">
           {LANGUAGE_LABEL[card.language]} · {card.theme}
+          <TheoryLink link={themeLinks[`${card.language}::${card.theme}`]} />
         </span>
         <span className="text-3xl font-semibold">{card.term}</span>
 
@@ -278,7 +284,7 @@ export default function Study() {
   );
 }
 
-function PracticeCard({ card, index, total, flipped, onFlip, onNext, onExit, exitTo, exitLabel }) {
+function PracticeCard({ card, index, total, flipped, onFlip, onNext, onExit, exitTo, exitLabel, themeLinks = {} }) {
   return (
     <div className="p-4 max-w-lg mx-auto flex flex-col gap-4">
       <div className="text-sm text-neutral-400 text-center">
@@ -291,6 +297,7 @@ function PracticeCard({ card, index, total, flipped, onFlip, onNext, onExit, exi
       >
         <span className="text-xs uppercase tracking-wide text-neutral-500">
           {LANGUAGE_LABEL[card.language]} · {card.theme}
+          <TheoryLink link={themeLinks[`${card.language}::${card.theme}`]} />
         </span>
         <span className="text-3xl font-semibold">{card.term}</span>
 
@@ -323,6 +330,19 @@ function PracticeCard({ card, index, total, flipped, onFlip, onNext, onExit, exi
         </button>
       )}
     </div>
+  );
+}
+
+function TheoryLink({ link }) {
+  if (!link) return null;
+  return (
+    <Link
+      to={`/theory/topics/${link.topic_slug}`}
+      title={link.topic_title}
+      className="ml-2 text-indigo-400 hover:text-indigo-300 normal-case"
+    >
+      Теория
+    </Link>
   );
 }
 

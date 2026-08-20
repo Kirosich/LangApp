@@ -102,6 +102,7 @@ export const api = {
   getMilestones: () => apiFetch('/api/gamification/milestones'),
   getWeeklyRecap: () => apiFetch('/api/gamification/weekly-recap'),
   getTheoryTopics: (language) => apiFetch(withQuery('/api/theory', { language })),
+  getTheoryThemeLinks: () => apiFetch('/api/theory/theme-links'),
   getTheoryTopic: (slug) => apiFetch(`/api/theory/${slug}`),
   markTheoryTopicRead: (slug) => apiFetch(`/api/theory/${slug}/read`, { method: 'POST' }),
   getKnownCards: (language) => apiFetch(withQuery('/api/cards/known', { language })),

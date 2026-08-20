@@ -1,6 +1,7 @@
 import { Router } from 'express';
 import { db } from '../db/index.js';
 import { calculateLevel } from '../xp/calculate.js';
+import { LEARNED_CONDITION_SQL } from '../db/learned.js';
 
 export const theoryReferenceRouter = Router();
 
@@ -40,6 +41,29 @@ theoryReferenceRouter.get('/', (req, res) => {
   );
 });
 
+// Registered before '/:slug' so "theme-links" isn't swallowed as a slug.
+theoryReferenceRouter.get('/theme-links', (req, res) => {
+  const { language } = req.query;
+  const conditions = [];
+  const params = [];
+  if (language) {
+    conditions.push('l.language = ?');
+    params.push(language);
+  }
+  const where = conditions.length ? `WHERE ${conditions.join(' AND ')}` : '';
+
+  const rows = db
+    .prepare(
+      `SELECT l.language, l.theme, l.topic_slug, t.title AS topic_title
+       FROM theory_theme_links l
+       JOIN theory_topics t ON t.slug = l.topic_slug
+       ${where}`
+    )
+    .all(...params);
+
+  res.json(rows);
+});
+
 theoryReferenceRouter.get('/:slug', (req, res) => {
   const topic = db
     .prepare(
@@ -56,6 +80,18 @@ theoryReferenceRouter.get('/:slug', (req, res) => {
     .prepare('SELECT section_type, content, order_index FROM theory_sections WHERE topic_id = ? ORDER BY order_index ASC')
     .all(topic.id);
 
+  const linkedThemes = db.prepare('SELECT theme FROM theory_theme_links WHERE topic_slug = ?').all(topic.slug);
+  const countStmt = db.prepare('SELECT COUNT(*) AS c FROM cards WHERE language = ? AND theme = ?');
+  const learnedStmt = db.prepare(
+    `SELECT COUNT(*) AS c FROM cards c LEFT JOIN progress p ON p.card_id = c.id
+     WHERE c.language = ? AND c.theme = ? AND ${LEARNED_CONDITION_SQL}`
+  );
+  const practice = linkedThemes.map(({ theme }) => ({
+    theme,
+    total: countStmt.get(topic.language, theme).c,
+    learned: learnedStmt.get(topic.language, theme).c
+  }));
+
   res.json({
     id: topic.id,
     language: topic.language,
@@ -65,7 +101,8 @@ theoryReferenceRouter.get('/:slug', (req, res) => {
     summary: topic.summary,
     read: Boolean(topic.read_at),
     read_count: topic.read_count ?? 0,
-    sections
+    sections,
+    practice
   });
 });
 

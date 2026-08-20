@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react';
 import { Link } from 'react-router-dom';
 import { api } from '../api/client';
+import { useTheoryThemeLinks } from '../hooks/useTheoryThemeLinks';
 
 const LANGUAGE_LABEL = { kz: 'KZ', en: 'EN' };
 const STATUS_OPTIONS = [
@@ -10,6 +11,15 @@ const STATUS_OPTIONS = [
   { value: 'mastered', label: 'Уже знаю' }
 ];
 
+function TheoryLink({ link }) {
+  if (!link) return null;
+  return (
+    <Link to={`/theory/topics/${link.topic_slug}`} title={link.topic_title} className="ml-1 text-indigo-400 hover:text-indigo-300">
+      Теория
+    </Link>
+  );
+}
+
 export default function Browse() {
   const [cards, setCards] = useState([]);
   const [themes, setThemes] = useState([]);
@@ -18,6 +28,7 @@ export default function Browse() {
   const [status, setStatus] = useState('');
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(true);
+  const themeLinks = useTheoryThemeLinks();
 
   useEffect(() => {
     api.getStats().then((s) => setThemes(s.by_theme.map((t) => t.theme))).catch(() => {});
@@ -124,6 +135,7 @@ export default function Browse() {
                 {card.status === 'backlog' && !card.mastered_at && (
                   <span className="ml-1 text-amber-500">· склад</span>
                 )}
+                <TheoryLink link={themeLinks[`${card.language}::${card.theme}`]} />
               </span>
               <span className="text-xs text-neutral-600">{card.progress?.due_date ?? '—'}</span>
             </div>
@@ -184,7 +196,10 @@ export default function Browse() {
                   {card.term}
                 </td>
                 <td className="px-3 py-2">{card.translation_ru}</td>
-                <td className="px-3 py-2 text-neutral-400">{card.theme}</td>
+                <td className="px-3 py-2 text-neutral-400">
+                  {card.theme}
+                  <TheoryLink link={themeLinks[`${card.language}::${card.theme}`]} />
+                </td>
                 <td className="px-3 py-2 text-neutral-500">
                   {card.mastered_at ? 'уже знаю' : card.status === 'backlog' ? 'склад' : 'активна'}
                 </td>

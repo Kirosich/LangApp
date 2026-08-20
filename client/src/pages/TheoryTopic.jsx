@@ -80,6 +80,28 @@ export default function TheoryTopic() {
       >
         {topic.read ? 'Понятно, прочитать ещё раз ✓' : 'Понятно, отметить как изученное'}
       </button>
+
+      {topic.practice?.length > 0 && (
+        <div className="space-y-3">
+          <div className="text-xs uppercase tracking-wide text-neutral-500">Практика</div>
+          {topic.practice.map((p) => (
+            <div key={p.theme} className="rounded-xl border border-neutral-800 bg-neutral-900 p-4 flex items-center justify-between gap-3">
+              <div>
+                <div className="text-sm text-neutral-300">{p.theme}</div>
+                <div className="text-xs text-neutral-500">
+                  выучено {p.learned} / {p.total}
+                </div>
+              </div>
+              <Link
+                to={`/study?language=${topic.language}&theme=${encodeURIComponent(p.theme)}`}
+                className="shrink-0 rounded-lg bg-neutral-800 hover:bg-neutral-700 px-3 py-2 text-sm"
+              >
+                Учить эти слова
+              </Link>
+            </div>
+          ))}
+        </div>
+      )}
     </div>
   );
 }

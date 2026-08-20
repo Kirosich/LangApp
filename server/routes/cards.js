@@ -58,7 +58,7 @@ const SELECT_WITH_PROGRESS = `
 `;
 
 cardsRouter.get('/due', (req, res) => {
-  const { language } = req.query;
+  const { language, theme } = req.query;
 
   // Top up today's backlog quota (capped by daily_intro_log) before
   // computing the due queue, so freshly-introduced cards are included.
@@ -72,6 +72,10 @@ cardsRouter.get('/due', (req, res) => {
   if (language) {
     conditions.push('c.language = ?');
     params.push(language);
+  }
+  if (theme) {
+    conditions.push('c.theme = ?');
+    params.push(theme);
   }
 
   const rows = db.prepare(`${SELECT_WITH_PROGRESS} WHERE ${conditions.join(' AND ')}`).all(...params);

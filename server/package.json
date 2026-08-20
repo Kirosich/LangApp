@@ -13,6 +13,7 @@
     "seed:theory-en": "node seed-theory-en.js",
     "seed:vocab-advanced": "node seed-vocab-advanced.js",
     "seed:vocab-stage2-backlog": "node seed-vocab-stage2-backlog.js",
+    "seed:theory-links": "node seed-theory-links.js",
     "migrate:vocab-to-backlog": "node migrate-vocab-to-backlog.js",
     "test": "vitest run"
   },

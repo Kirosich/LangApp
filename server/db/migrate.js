@@ -113,7 +113,17 @@ const MIGRATIONS = [
     new_cards_per_day INTEGER NOT NULL DEFAULT 8
   )`,
   `INSERT OR IGNORE INTO intro_settings (language, new_cards_per_day) VALUES ('kz', 8)`,
-  `INSERT OR IGNORE INTO intro_settings (language, new_cards_per_day) VALUES ('en', 8)`
+  `INSERT OR IGNORE INTO intro_settings (language, new_cards_per_day) VALUES ('en', 8)`,
+  // Optional link from a card theme to a theory reference topic (e.g.
+  // theme "глаголы" -> slug "kz-verb-tenses"). Not every theme has one —
+  // seeded separately via seed-theory-links.js, after theory topics exist.
+  `CREATE TABLE IF NOT EXISTS theory_theme_links (
+    language TEXT NOT NULL CHECK (language IN ('kz', 'en')),
+    theme TEXT NOT NULL,
+    topic_slug TEXT NOT NULL REFERENCES theory_topics(slug) ON DELETE CASCADE,
+    PRIMARY KEY (language, theme)
+  )`,
+  `CREATE INDEX IF NOT EXISTS idx_theory_theme_links_slug ON theory_theme_links(topic_slug)`
 ];
 
 function addColumnIfMissing(db, table, column, definition) {

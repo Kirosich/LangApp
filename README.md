@@ -29,6 +29,11 @@
   (`server/routes/theory.js`, `client/src/pages/Theory*.jsx`)
 - Плюс независимый мини-справочник теоретических тем со своим прогрессом
   прочтения (`server/routes/theoryReference.js`)
+- Опциональная связка тема карточек ↔ slug темы справочника
+  (`theory_theme_links`, `server/seed-theory-links.js`): на карточке в
+  Study/Browse — ссылка «Теория» на связанную тему; на странице темы
+  справочника — блок «Практика» (выучено/всего) и кнопка «Учить эти
+  слова» с фильтром по теме
 
 **Геймификация и статистика**
 - XP и уровни за повторения/квизы/мастеринг (`server/xp/`)
@@ -169,7 +174,7 @@ Secrets and variables → Actions**:
 
 | Метод | Путь | Описание |
 |---|---|---|
-| GET | `/api/cards/due?language=` | карточки к повторению сегодня (SM-2) |
+| GET | `/api/cards/due?language=&theme=` | карточки к повторению сегодня (SM-2), опционально по теме |
 | GET | `/api/cards?theme=&language=&ids=&status=` | список/фильтр карточек (`status`: active/backlog/mastered) |
 | GET | `/api/cards/known?language=` | освоенные карточки |
 | POST | `/api/cards` | добавить карточку |
@@ -184,6 +189,7 @@ Secrets and variables → Actions**:
 | GET/POST/PUT/DELETE | `/api/theory/courses`, `/blocks`, `/items` | курсы теории → блоки → пункты-чеклист |
 | GET | `/api/theory?language=` / `/api/theory/:slug` | мини-справочник теоретических тем |
 | POST | `/api/theory/:slug/read` | отметить тему прочитанной, начислить XP |
+| GET | `/api/theory/theme-links?language=` | связки тема карточек ↔ slug темы справочника |
 | GET | `/api/gamification/summary` \| `/badges` \| `/heatmap` \| `/cumulative` \| `/topics-breakdown` \| `/accuracy-trend` \| `/problem-cards` \| `/milestones` \| `/weekly-recap` | статистика и геймификация для дашборда |
 | GET | `/api/backlog/summary` \| `/settings` | состояние и настройки склада новых карточек |
 | PUT | `/api/backlog/settings` | темп ввода новых карточек в день |
@@ -221,3 +227,11 @@ Secrets and variables → Actions**:
   английских (B2–C1: связки речи, устойчивые сочетания make/do/take/have,
   карьера, точные глаголы вместо общих, аргументация). Все — в `backlog`,
   вводятся дозированно; см. `server/seed-vocab-stage2-backlog.js`.
+- **2026-08-20** — связка теории и карточек (Этап 3 плана): опциональная
+  таблица `theory_theme_links` (тема ↔ slug темы справочника), ссылка
+  «Теория» на карточках в Study/Browse и блок «Практика» (выучено/всего
+  + «Учить эти слова» с фильтром по теме) на странице темы справочника.
+  Пока связано 7 тем: `глаголы`/`глаголы движения` → времена глагола,
+  `вопросительные слова` → вопросительные частицы, `семья` → аффиксы
+  принадлежности, `покупки и деньги` → табыс септік; `карьера` → phrasal
+  verbs про работу, `синонимы` → путаемые пары слов.
