@@ -6,7 +6,8 @@ const NAV_ITEMS = [
   { to: '/study', label: 'Учить', icon: '📚' },
   { to: '/quiz', label: 'Квиз', icon: '🎯' },
   { to: '/browse', label: 'Карточки', icon: '🗂️' },
-  { to: '/theory', label: 'Теория', icon: '📖' }
+  { to: '/theory', label: 'Теория', icon: '📖' },
+  { to: '/known', label: 'Знания', icon: '🏅' }
 ];
 
 function navLinkClass({ isActive }) {

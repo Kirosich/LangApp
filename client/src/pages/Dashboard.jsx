@@ -11,6 +11,7 @@ import AccuracyChart from '../components/progress/AccuracyChart';
 import ProblemCards from '../components/progress/ProblemCards';
 import Milestones from '../components/progress/Milestones';
 import WeeklyRecap from '../components/progress/WeeklyRecap';
+import BacklogWidget from '../components/progress/BacklogWidget';
 
 const LANGUAGE_TABS = [
   { value: '', label: 'Все' },
@@ -39,6 +40,16 @@ export default function Dashboard() {
   const [problemCards, setProblemCards] = useState(null);
   const [milestones, setMilestones] = useState(null);
   const [weeklyRecap, setWeeklyRecap] = useState(null);
+  const [backlogSummary, setBacklogSummary] = useState(null);
+
+  function loadBacklogSummary() {
+    api.getBacklogSummary().then(setBacklogSummary).catch(() => {});
+  }
+
+  async function handleBoost(lang, count) {
+    await api.boostBacklog(lang, count);
+    loadBacklogSummary();
+  }
 
   useEffect(() => {
     api.getStats({ language }).then(setStats).catch((e) => setError(e.message));
@@ -54,6 +65,7 @@ export default function Dashboard() {
     api.getProblemCards().then(setProblemCards).catch(() => {});
     api.getMilestones().then(setMilestones).catch(() => {});
     api.getWeeklyRecap().then(setWeeklyRecap).catch(() => {});
+    loadBacklogSummary();
   }, []);
 
   const actionSuffix = language ? `?language=${language}` : '';
@@ -92,6 +104,16 @@ export default function Dashboard() {
         <ActionButton to={`/quiz${actionSuffix}`} label="Квиз" icon="🎯" />
         <ActionButton to="/cards/new" label="Добавить карточку" icon="➕" />
         <ActionButton to="/browse" label="Все карточки" icon="🗂️" />
+      </div>
+
+      <div>
+        <div className="flex items-center justify-between mb-2">
+          <h2 className="text-sm text-neutral-400">Склад</h2>
+          <Link to="/settings" className="text-xs text-indigo-400 hover:text-indigo-300">
+            Настройки
+          </Link>
+        </div>
+        <BacklogWidget summary={backlogSummary} onBoost={handleBoost} />
       </div>
 
       {stats && (

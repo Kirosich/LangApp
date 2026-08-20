@@ -70,6 +70,22 @@ export default function Study() {
     }
   }
 
+  async function master() {
+    const card = cards[index];
+    setSubmitting(true);
+    try {
+      const result = await api.masterCard(card.id);
+      recordCard();
+      if (result.leveled_up) celebrateLevelUp();
+      setFlipped(false);
+      setIndex((i) => i + 1);
+    } catch (e) {
+      setError(e.message);
+    } finally {
+      setSubmitting(false);
+    }
+  }
+
   if (error) return <div className="p-4 text-red-400">{error}</div>;
   if (!cards) return <div className="p-4 text-neutral-400">Загрузка…</div>;
 
@@ -114,18 +130,27 @@ export default function Study() {
       </button>
 
       {flipped && (
-        <div className="grid grid-cols-4 gap-2">
-          {RATINGS.map((r) => (
-            <button
-              key={r.quality}
-              disabled={submitting}
-              onClick={() => rate(r.quality)}
-              className={`rounded-xl py-3 text-sm font-medium text-white transition-colors disabled:opacity-50 ${r.className}`}
-            >
-              {r.label}
-            </button>
-          ))}
-        </div>
+        <>
+          <div className="grid grid-cols-4 gap-2">
+            {RATINGS.map((r) => (
+              <button
+                key={r.quality}
+                disabled={submitting}
+                onClick={() => rate(r.quality)}
+                className={`rounded-xl py-3 text-sm font-medium text-white transition-colors disabled:opacity-50 ${r.className}`}
+              >
+                {r.label}
+              </button>
+            ))}
+          </div>
+          <button
+            onClick={master}
+            disabled={submitting}
+            className="text-xs text-neutral-600 hover:text-emerald-500 disabled:opacity-50 self-center"
+          >
+            Знаю досконально, больше не показывать
+          </button>
+        </>
       )}
     </div>
   );

@@ -1,5 +1,6 @@
 import { computeStreak } from '../db/streak.js';
 import { isQuizSession } from './badgeDefinitions.js';
+import { LEARNED_CONDITION_SQL } from '../db/learned.js';
 
 function toUtcDate(sqliteDatetime) {
   return new Date(`${sqliteDatetime.replace(' ', 'T')}Z`);
@@ -22,7 +23,7 @@ function checkBadges(db, session) {
   if (streak >= 30) awardBadge(db, 'streak_30', newlyEarned);
 
   const learned = db
-    .prepare('SELECT COUNT(*) AS count FROM progress WHERE repetitions >= 2 AND easiness_factor >= 2.5')
+    .prepare(`SELECT COUNT(*) AS count FROM cards c LEFT JOIN progress p ON p.card_id = c.id WHERE ${LEARNED_CONDITION_SQL}`)
     .get().count;
   if (learned >= 100) awardBadge(db, 'words_100', newlyEarned);
   if (learned >= 250) awardBadge(db, 'words_250', newlyEarned);

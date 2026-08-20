@@ -103,7 +103,16 @@ export const api = {
   getWeeklyRecap: () => apiFetch('/api/gamification/weekly-recap'),
   getTheoryTopics: (language) => apiFetch(withQuery('/api/theory', { language })),
   getTheoryTopic: (slug) => apiFetch(`/api/theory/${slug}`),
-  markTheoryTopicRead: (slug) => apiFetch(`/api/theory/${slug}/read`, { method: 'POST' })
+  markTheoryTopicRead: (slug) => apiFetch(`/api/theory/${slug}/read`, { method: 'POST' }),
+  getKnownCards: (language) => apiFetch(withQuery('/api/cards/known', { language })),
+  masterCard: (id) => apiFetch(`/api/cards/${id}/master`, { method: 'POST' }),
+  unmasterCard: (id) => apiFetch(`/api/cards/${id}/unmaster`, { method: 'POST' }),
+  getBacklogSummary: () => apiFetch('/api/backlog/summary'),
+  getBacklogSettings: () => apiFetch('/api/backlog/settings'),
+  updateBacklogSettings: (language, newCardsPerDay) =>
+    apiFetch('/api/backlog/settings', { method: 'PUT', body: JSON.stringify({ language, new_cards_per_day: newCardsPerDay }) }),
+  boostBacklog: (language, count) =>
+    apiFetch('/api/backlog/boost', { method: 'POST', body: JSON.stringify({ language, count }) })
 };
 
 export function endSessionOnUnload(id, cardsReviewed, correctCount = null) {

@@ -1,18 +1,10 @@
 import { Router } from 'express';
 import { db } from '../db/index.js';
+import { shuffle } from '../utils/shuffle.js';
 
 export const quizRouter = Router();
 
 const VALID_TYPES = new Set(['choice', 'typing', 'matching']);
-
-function shuffle(array) {
-  const arr = [...array];
-  for (let i = arr.length - 1; i > 0; i--) {
-    const j = Math.floor(Math.random() * (i + 1));
-    [arr[i], arr[j]] = [arr[j], arr[i]];
-  }
-  return arr;
-}
 
 function buildFilterClause(theme, language, alias = 'c') {
   const conditions = [];
@@ -35,7 +27,7 @@ function selectQuizCards({ theme, language, count }) {
   const due = db
     .prepare(
       `SELECT c.* FROM cards c JOIN progress p ON p.card_id = c.id
-       WHERE p.due_date <= ? ${clause} ORDER BY p.due_date ASC LIMIT ?`
+       WHERE p.due_date <= ? AND c.mastered_at IS NULL ${clause} ORDER BY p.due_date ASC LIMIT ?`
     )
     .all(today, ...params, count);
 
@@ -48,7 +40,7 @@ function selectQuizCards({ theme, language, count }) {
   const filler = db
     .prepare(
       `SELECT c.* FROM cards c
-       WHERE 1=1 ${clause} ${excludeClause}
+       WHERE c.status = 'active' AND c.mastered_at IS NULL ${clause} ${excludeClause}
        ORDER BY RANDOM() LIMIT ?`
     )
     .all(...params, ...excludeIds, count - due.length);

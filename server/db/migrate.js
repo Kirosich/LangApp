@@ -101,7 +101,19 @@ const MIGRATIONS = [
     read_count INTEGER NOT NULL DEFAULT 0
   )`,
   `CREATE INDEX IF NOT EXISTS idx_theory_topics_language ON theory_topics(language)`,
-  `CREATE INDEX IF NOT EXISTS idx_theory_sections_topic ON theory_sections(topic_id)`
+  `CREATE INDEX IF NOT EXISTS idx_theory_sections_topic ON theory_sections(topic_id)`,
+  `CREATE TABLE IF NOT EXISTS daily_intro_log (
+    date TEXT NOT NULL,
+    language TEXT NOT NULL,
+    count INTEGER NOT NULL DEFAULT 0,
+    PRIMARY KEY (date, language)
+  )`,
+  `CREATE TABLE IF NOT EXISTS intro_settings (
+    language TEXT PRIMARY KEY,
+    new_cards_per_day INTEGER NOT NULL DEFAULT 8
+  )`,
+  `INSERT OR IGNORE INTO intro_settings (language, new_cards_per_day) VALUES ('kz', 8)`,
+  `INSERT OR IGNORE INTO intro_settings (language, new_cards_per_day) VALUES ('en', 8)`
 ];
 
 function addColumnIfMissing(db, table, column, definition) {
@@ -118,6 +130,12 @@ export function runMigrations(db) {
       db.exec(sql);
     }
     addColumnIfMissing(db, 'study_sessions', 'correct_count', 'INTEGER');
+    addColumnIfMissing(db, 'cards', 'status', "TEXT NOT NULL DEFAULT 'active'");
+    addColumnIfMissing(db, 'cards', 'activated_at', 'TEXT');
+    addColumnIfMissing(db, 'cards', 'mastered_at', 'TEXT');
+    // Backfill: cards that predate this column are already active, so treat
+    // their creation as their activation moment.
+    db.exec(`UPDATE cards SET activated_at = created_at WHERE status = 'active' AND activated_at IS NULL`);
   });
   migrate();
 }

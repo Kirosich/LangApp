@@ -10,6 +10,7 @@ import { sessionsRouter } from './routes/sessions.js';
 import { theoryRouter } from './routes/theory.js';
 import { theoryReferenceRouter } from './routes/theoryReference.js';
 import { gamificationRouter } from './routes/gamification.js';
+import { backlogRouter } from './routes/backlog.js';
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const PORT = process.env.PORT || 3000;
@@ -26,6 +27,7 @@ app.use('/api/sessions', sessionsRouter);
 app.use('/api/theory', theoryRouter);
 app.use('/api/theory', theoryReferenceRouter);
 app.use('/api/gamification', gamificationRouter);
+app.use('/api/backlog', backlogRouter);
 
 app.use(express.static(CLIENT_DIST));
 app.get('*', (req, res) => {

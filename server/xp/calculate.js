@@ -1,4 +1,7 @@
 export const STREAK_BONUS_XP = 20;
+// Deliberately less than a "легко" review (10 XP) — mastering is a
+// self-report, not verified practice, so it shouldn't pay out as much.
+export const MASTER_XP = 2;
 
 export function xpForReview(quality) {
   if (quality >= 5) return 10;

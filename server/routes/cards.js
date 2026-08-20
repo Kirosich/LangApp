@@ -1,7 +1,10 @@
 import { Router } from 'express';
 import { db } from '../db/index.js';
 import { calculateNextReview } from '../srs/sm2.js';
-import { xpForReview, STREAK_BONUS_XP, calculateLevel } from '../xp/calculate.js';
+import { xpForReview, STREAK_BONUS_XP, MASTER_XP, calculateLevel } from '../xp/calculate.js';
+import { introduceDailyBacklog } from '../backlog/introduce.js';
+import { shuffle } from '../utils/shuffle.js';
+import { LEARNED_CONDITION_SQL } from '../db/learned.js';
 
 export const cardsRouter = Router();
 
@@ -30,26 +33,40 @@ function cardWithProgress(row) {
     theme: row.theme,
     example_sentence: row.example_sentence,
     created_at: row.created_at,
-    progress: {
-      easiness_factor: row.easiness_factor,
-      interval_days: row.interval_days,
-      repetitions: row.repetitions,
-      due_date: row.due_date,
-      last_reviewed: row.last_reviewed
-    }
+    status: row.status,
+    mastered_at: row.mastered_at,
+    progress:
+      row.easiness_factor != null
+        ? {
+            easiness_factor: row.easiness_factor,
+            interval_days: row.interval_days,
+            repetitions: row.repetitions,
+            due_date: row.due_date,
+            last_reviewed: row.last_reviewed
+          }
+        : null
   };
 }
 
+// LEFT JOIN: backlog cards have no progress row. Queries that filter on
+// p.<column> (like /due's due_date <= ?) still naturally exclude them,
+// since comparisons against NULL are false.
 const SELECT_WITH_PROGRESS = `
   SELECT c.*, p.easiness_factor, p.interval_days, p.repetitions, p.due_date, p.last_reviewed
   FROM cards c
-  JOIN progress p ON p.card_id = c.id
+  LEFT JOIN progress p ON p.card_id = c.id
 `;
 
 cardsRouter.get('/due', (req, res) => {
   const { language } = req.query;
+
+  // Top up today's backlog quota (capped by daily_intro_log) before
+  // computing the due queue, so freshly-introduced cards are included.
+  introduceDailyBacklog(db, 'kz');
+  introduceDailyBacklog(db, 'en');
+
   const today = new Date().toISOString().slice(0, 10);
-  const conditions = ['p.due_date <= ?'];
+  const conditions = ['p.due_date <= ?', 'c.mastered_at IS NULL'];
   const params = [today];
 
   if (language) {
@@ -57,14 +74,30 @@ cardsRouter.get('/due', (req, res) => {
     params.push(language);
   }
 
+  const rows = db.prepare(`${SELECT_WITH_PROGRESS} WHERE ${conditions.join(' AND ')}`).all(...params);
+  // Shuffle so newly-introduced cards blend into the regular review queue
+  // instead of forming a separate block.
+  res.json(shuffle(rows).map(cardWithProgress));
+});
+
+cardsRouter.get('/known', (req, res) => {
+  const { language } = req.query;
+  const conditions = [LEARNED_CONDITION_SQL];
+  const params = [];
+
+  if (language) {
+    conditions.push('c.language = ?');
+    params.push(language);
+  }
+
   const rows = db
-    .prepare(`${SELECT_WITH_PROGRESS} WHERE ${conditions.join(' AND ')} ORDER BY p.due_date ASC`)
+    .prepare(`${SELECT_WITH_PROGRESS} WHERE ${conditions.join(' AND ')} ORDER BY c.theme ASC, c.term ASC`)
     .all(...params);
   res.json(rows.map(cardWithProgress));
 });
 
 cardsRouter.get('/', (req, res) => {
-  const { theme, language, ids } = req.query;
+  const { theme, language, ids, status } = req.query;
   const conditions = [];
   const params = [];
 
@@ -86,6 +119,13 @@ cardsRouter.get('/', (req, res) => {
       params.push(...idList);
     }
   }
+  if (status === 'active') {
+    conditions.push(`c.status = 'active' AND c.mastered_at IS NULL`);
+  } else if (status === 'backlog') {
+    conditions.push(`c.status = 'backlog' AND c.mastered_at IS NULL`);
+  } else if (status === 'mastered') {
+    conditions.push('c.mastered_at IS NOT NULL');
+  }
 
   const where = conditions.length ? `WHERE ${conditions.join(' AND ')}` : '';
   const rows = db.prepare(`${SELECT_WITH_PROGRESS} ${where} ORDER BY c.created_at DESC`).all(...params);
@@ -98,11 +138,13 @@ cardsRouter.post('/', (req, res) => {
 
   const { language, term, translation_ru, transcription, theme, example_sentence } = req.body;
 
+  // Manually adding one card through the form always means "I want to
+  // study this now" — it goes straight to active, unlike a bulk import.
   const insertCard = db.transaction(() => {
     const info = db
       .prepare(
-        `INSERT INTO cards (language, term, translation_ru, transcription, theme, example_sentence)
-         VALUES (?, ?, ?, ?, ?, ?)`
+        `INSERT INTO cards (language, term, translation_ru, transcription, theme, example_sentence, status, activated_at)
+         VALUES (?, ?, ?, ?, ?, ?, 'active', datetime('now'))`
       )
       .run(language, term, translation_ru, transcription ?? null, theme, example_sentence ?? null);
 
@@ -113,6 +155,52 @@ cardsRouter.post('/', (req, res) => {
   const id = insertCard();
   const row = db.prepare(`${SELECT_WITH_PROGRESS} WHERE c.id = ?`).get(id);
   res.status(201).json(cardWithProgress(row));
+});
+
+cardsRouter.post('/import', (req, res) => {
+  const { cards } = req.body;
+  if (!Array.isArray(cards) || cards.length === 0) {
+    return res.status(400).json({ error: 'cards must be a non-empty array' });
+  }
+
+  const errors = [];
+  cards.forEach((card, i) => {
+    const cardErrors = validateCardInput(card);
+    if (cardErrors.length) errors.push({ index: i, errors: cardErrors });
+  });
+  if (errors.length) return res.status(400).json({ errors });
+
+  const insertCard = db.prepare(
+    `INSERT INTO cards (language, term, translation_ru, transcription, theme, example_sentence, status, activated_at)
+     VALUES (@language, @term, @translation_ru, @transcription, @theme, @example_sentence, @status, @activated_at)`
+  );
+  const insertProgress = db.prepare('INSERT INTO progress (card_id) VALUES (?)');
+
+  const result = db.transaction(() => {
+    let imported = 0;
+    let activated = 0;
+    for (const card of cards) {
+      const status = card.status === 'active' ? 'active' : 'backlog';
+      const info = insertCard.run({
+        language: card.language,
+        term: card.term,
+        translation_ru: card.translation_ru,
+        transcription: card.transcription ?? null,
+        theme: card.theme,
+        example_sentence: card.example_sentence ?? null,
+        status,
+        activated_at: status === 'active' ? new Date().toISOString().slice(0, 19).replace('T', ' ') : null
+      });
+      if (status === 'active') {
+        insertProgress.run(info.lastInsertRowid);
+        activated += 1;
+      }
+      imported += 1;
+    }
+    return { imported, activated };
+  })();
+
+  res.status(201).json({ imported: result.imported, activated: result.activated, backlogged: result.imported - result.activated });
 });
 
 cardsRouter.put('/:id', (req, res) => {
@@ -193,4 +281,34 @@ cardsRouter.post('/:id/review', (req, res) => {
     total_xp: result.totalXp,
     current_level: result.currentLevel
   });
+});
+
+cardsRouter.post('/:id/master', (req, res) => {
+  const { id } = req.params;
+  const card = db.prepare('SELECT * FROM cards WHERE id = ?').get(id);
+  if (!card) return res.status(404).json({ error: 'Card not found' });
+  if (card.mastered_at) return res.status(400).json({ error: 'Card is already mastered' });
+
+  const result = db.transaction(() => {
+    db.prepare(`UPDATE cards SET mastered_at = datetime('now') WHERE id = ?`).run(id);
+
+    const stats = db.prepare('SELECT total_xp, current_level FROM user_stats WHERE id = 1').get();
+    const newTotalXp = stats.total_xp + MASTER_XP;
+    const newLevel = calculateLevel(newTotalXp);
+    const leveledUp = newLevel > stats.current_level;
+
+    db.prepare('UPDATE user_stats SET total_xp = ?, current_level = ? WHERE id = 1').run(newTotalXp, newLevel);
+    db.prepare('INSERT INTO xp_events (amount) VALUES (?)').run(MASTER_XP);
+
+    return { leveledUp };
+  })();
+
+  res.json({ xp_gained: MASTER_XP, leveled_up: result.leveledUp });
+});
+
+cardsRouter.post('/:id/unmaster', (req, res) => {
+  const { id } = req.params;
+  const info = db.prepare(`UPDATE cards SET mastered_at = NULL WHERE id = ?`).run(id);
+  if (info.changes === 0) return res.status(404).json({ error: 'Card not found' });
+  res.status(204).end();
 });

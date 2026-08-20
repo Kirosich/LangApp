@@ -4,10 +4,9 @@ import { xpThresholdForLevel, xpToNextLevel, progressPercentToNextLevel } from '
 import { levelName } from '../xp/levelNames.js';
 import { BADGE_DEFINITIONS } from '../gamification/badgeDefinitions.js';
 import { milestoneForTheme, UNLOCK_THRESHOLD_PERCENT } from '../config/milestones.js';
+import { LEARNED_CONDITION_SQL } from '../db/learned.js';
 
 export const gamificationRouter = Router();
-
-const LEARNED_CONDITION = 'p.repetitions >= 2 AND p.easiness_factor >= 2.5';
 
 function addDays(dateStr, days) {
   const d = new Date(`${dateStr}T00:00:00Z`);
@@ -75,7 +74,7 @@ gamificationRouter.get('/problem-cards', (req, res) => {
       `SELECT c.*, p.easiness_factor, p.interval_days, p.repetitions, p.due_date, p.last_reviewed
        FROM cards c
        JOIN progress p ON p.card_id = c.id
-       WHERE p.last_reviewed IS NOT NULL
+       WHERE p.last_reviewed IS NOT NULL AND c.mastered_at IS NULL
        ORDER BY p.easiness_factor ASC
        LIMIT 5`
     )
@@ -125,10 +124,11 @@ gamificationRouter.get('/heatmap', (req, res) => {
 gamificationRouter.get('/cumulative', (req, res) => {
   const rows = db
     .prepare(
-      `SELECT p.last_reviewed AS date
-       FROM progress p
-       WHERE ${LEARNED_CONDITION} AND p.last_reviewed IS NOT NULL
-       ORDER BY p.last_reviewed ASC`
+      `SELECT COALESCE(p.last_reviewed, date(c.mastered_at)) AS date
+       FROM cards c
+       LEFT JOIN progress p ON p.card_id = c.id
+       WHERE ${LEARNED_CONDITION_SQL} AND COALESCE(p.last_reviewed, date(c.mastered_at)) IS NOT NULL
+       ORDER BY date ASC`
     )
     .all();
 
@@ -152,9 +152,9 @@ gamificationRouter.get('/topics-breakdown', (req, res) => {
     .prepare(
       `SELECT c.theme,
               COUNT(*) AS total_cards,
-              SUM(CASE WHEN ${LEARNED_CONDITION} THEN 1 ELSE 0 END) AS learned_cards
+              SUM(CASE WHEN ${LEARNED_CONDITION_SQL} THEN 1 ELSE 0 END) AS learned_cards
        FROM cards c
-       JOIN progress p ON p.card_id = c.id
+       LEFT JOIN progress p ON p.card_id = c.id
        GROUP BY c.theme
        ORDER BY total_cards DESC`
     )
@@ -168,9 +168,9 @@ gamificationRouter.get('/milestones', (req, res) => {
     .prepare(
       `SELECT c.theme,
               COUNT(*) AS total_cards,
-              SUM(CASE WHEN ${LEARNED_CONDITION} THEN 1 ELSE 0 END) AS learned_cards
+              SUM(CASE WHEN ${LEARNED_CONDITION_SQL} THEN 1 ELSE 0 END) AS learned_cards
        FROM cards c
-       JOIN progress p ON p.card_id = c.id
+       LEFT JOIN progress p ON p.card_id = c.id
        GROUP BY c.theme
        ORDER BY total_cards DESC`
     )
@@ -210,10 +210,15 @@ function weekTotals(db, startDate, endDate) {
 
   const wordsLearned = db
     .prepare(
-      `SELECT COUNT(*) AS count FROM progress p
-       WHERE ${LEARNED_CONDITION} AND p.last_reviewed BETWEEN ? AND ?`
+      `SELECT COUNT(*) AS count FROM (
+         SELECT c.id FROM cards c JOIN progress p ON p.card_id = c.id
+         WHERE p.repetitions >= 2 AND p.easiness_factor >= 2.5 AND p.last_reviewed BETWEEN ? AND ?
+         UNION
+         SELECT c.id FROM cards c
+         WHERE c.mastered_at IS NOT NULL AND date(c.mastered_at) BETWEEN ? AND ?
+       )`
     )
-    .get(startDate, endDate).count;
+    .get(startDate, endDate, startDate, endDate).count;
 
   const xp = db
     .prepare(`SELECT COALESCE(SUM(amount), 0) AS xp FROM xp_events WHERE date(created_at) BETWEEN ? AND ?`)

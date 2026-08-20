@@ -3,12 +3,19 @@ import { Link } from 'react-router-dom';
 import { api } from '../api/client';
 
 const LANGUAGE_LABEL = { kz: 'KZ', en: 'EN' };
+const STATUS_OPTIONS = [
+  { value: '', label: 'Все' },
+  { value: 'active', label: 'Активные' },
+  { value: 'backlog', label: 'На складе' },
+  { value: 'mastered', label: 'Уже знаю' }
+];
 
 export default function Browse() {
   const [cards, setCards] = useState([]);
   const [themes, setThemes] = useState([]);
   const [theme, setTheme] = useState('');
   const [language, setLanguage] = useState('');
+  const [status, setStatus] = useState('');
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(true);
 
@@ -16,20 +23,40 @@ export default function Browse() {
     api.getStats().then((s) => setThemes(s.by_theme.map((t) => t.theme))).catch(() => {});
   }, []);
 
-  useEffect(() => {
+  function load() {
     setLoading(true);
     api
-      .getCards({ theme, language })
+      .getCards({ theme, language, status })
       .then(setCards)
       .catch((e) => setError(e.message))
       .finally(() => setLoading(false));
-  }, [theme, language]);
+  }
+
+  useEffect(load, [theme, language, status]);
 
   async function handleDelete(id) {
     if (!window.confirm('Удалить карточку?')) return;
     try {
       await api.deleteCard(id);
       setCards((prev) => prev.filter((c) => c.id !== id));
+    } catch (e) {
+      setError(e.message);
+    }
+  }
+
+  async function handleMaster(id) {
+    try {
+      await api.masterCard(id);
+      load();
+    } catch (e) {
+      setError(e.message);
+    }
+  }
+
+  async function handleUnmaster(id) {
+    try {
+      await api.unmasterCard(id);
+      load();
     } catch (e) {
       setError(e.message);
     }
@@ -44,7 +71,7 @@ export default function Browse() {
         </Link>
       </div>
 
-      <div className="flex gap-2 mb-4">
+      <div className="flex flex-wrap gap-2 mb-4">
         <select
           value={language}
           onChange={(e) => setLanguage(e.target.value)}
@@ -66,6 +93,17 @@ export default function Browse() {
             </option>
           ))}
         </select>
+        <select
+          value={status}
+          onChange={(e) => setStatus(e.target.value)}
+          className="rounded-lg bg-neutral-900 border border-neutral-800 px-3 py-2 text-sm"
+        >
+          {STATUS_OPTIONS.map((opt) => (
+            <option key={opt.value} value={opt.value}>
+              {opt.label}
+            </option>
+          ))}
+        </select>
       </div>
 
       {error && <p className="text-sm text-red-400 mb-2">{error}</p>}
@@ -74,22 +112,42 @@ export default function Browse() {
       {/* Mobile: stacked cards */}
       <div className="sm:hidden space-y-2">
         {cards.map((card) => (
-          <div key={card.id} className="rounded-xl border border-neutral-800 bg-neutral-900 p-3">
+          <div
+            key={card.id}
+            className={`rounded-xl border p-3 ${
+              card.mastered_at ? 'border-neutral-800/60 bg-neutral-900/50 opacity-70' : 'border-neutral-800 bg-neutral-900'
+            }`}
+          >
             <div className="flex items-center justify-between mb-1">
               <span className="text-xs text-neutral-500">
                 {LANGUAGE_LABEL[card.language]} · {card.theme}
+                {card.status === 'backlog' && !card.mastered_at && (
+                  <span className="ml-1 text-amber-500">· склад</span>
+                )}
               </span>
-              <span className="text-xs text-neutral-600">{card.progress.due_date}</span>
+              <span className="text-xs text-neutral-600">{card.progress?.due_date ?? '—'}</span>
             </div>
-            <div className="font-medium">{card.term}</div>
+            <div className="font-medium flex items-center gap-1">
+              {card.mastered_at && <span className="text-emerald-400">✓</span>}
+              {card.term}
+            </div>
             <div className="text-neutral-400 text-sm">{card.translation_ru}</div>
-            <div className="flex gap-3 mt-2 text-sm">
+            <div className="flex gap-3 mt-2 text-sm items-center">
               <Link to={`/cards/${card.id}/edit`} className="text-indigo-400 hover:text-indigo-300">
                 Изменить
               </Link>
               <button onClick={() => handleDelete(card.id)} className="text-red-400 hover:text-red-300">
                 Удалить
               </button>
+              {card.mastered_at ? (
+                <button onClick={() => handleUnmaster(card.id)} className="text-neutral-500 hover:text-neutral-300 ml-auto">
+                  ↩ вернуть
+                </button>
+              ) : (
+                <button onClick={() => handleMaster(card.id)} className="text-emerald-500 hover:text-emerald-400 ml-auto">
+                  ✓ Уже знаю
+                </button>
+              )}
             </div>
           </div>
         ))}
@@ -109,25 +167,44 @@ export default function Browse() {
               <th className="px-3 py-2">Термин</th>
               <th className="px-3 py-2">Перевод</th>
               <th className="px-3 py-2">Тема</th>
+              <th className="px-3 py-2">Статус</th>
               <th className="px-3 py-2">Повтор</th>
               <th className="px-3 py-2" />
             </tr>
           </thead>
           <tbody>
             {cards.map((card) => (
-              <tr key={card.id} className="border-t border-neutral-800 hover:bg-neutral-900/50">
+              <tr
+                key={card.id}
+                className={`border-t border-neutral-800 hover:bg-neutral-900/50 ${card.mastered_at ? 'opacity-60' : ''}`}
+              >
                 <td className="px-3 py-2 text-neutral-400">{LANGUAGE_LABEL[card.language]}</td>
-                <td className="px-3 py-2">{card.term}</td>
+                <td className="px-3 py-2">
+                  {card.mastered_at && <span className="text-emerald-400 mr-1">✓</span>}
+                  {card.term}
+                </td>
                 <td className="px-3 py-2">{card.translation_ru}</td>
                 <td className="px-3 py-2 text-neutral-400">{card.theme}</td>
-                <td className="px-3 py-2 text-neutral-500">{card.progress.due_date}</td>
+                <td className="px-3 py-2 text-neutral-500">
+                  {card.mastered_at ? 'уже знаю' : card.status === 'backlog' ? 'склад' : 'активна'}
+                </td>
+                <td className="px-3 py-2 text-neutral-500">{card.progress?.due_date ?? '—'}</td>
                 <td className="px-3 py-2 text-right whitespace-nowrap">
                   <Link to={`/cards/${card.id}/edit`} className="text-indigo-400 hover:text-indigo-300 mr-3">
                     Изменить
                   </Link>
-                  <button onClick={() => handleDelete(card.id)} className="text-red-400 hover:text-red-300">
+                  <button onClick={() => handleDelete(card.id)} className="text-red-400 hover:text-red-300 mr-3">
                     Удалить
                   </button>
+                  {card.mastered_at ? (
+                    <button onClick={() => handleUnmaster(card.id)} className="text-neutral-500 hover:text-neutral-300">
+                      ↩ вернуть
+                    </button>
+                  ) : (
+                    <button onClick={() => handleMaster(card.id)} className="text-emerald-500 hover:text-emerald-400">
+                      ✓ Уже знаю
+                    </button>
+                  )}
                 </td>
               </tr>
             ))}
