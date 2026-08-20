@@ -28,11 +28,14 @@ export default function Layout() {
         </button>
       </header>
 
-      <main className="flex-1 overflow-y-auto pb-20">
+      <main className="flex-1 pb-24">
         <Outlet />
       </main>
 
-      <nav className="fixed bottom-0 inset-x-0 flex bg-neutral-900 border-t border-neutral-800 max-w-lg mx-auto left-0 right-0">
+      <nav
+        className="fixed bottom-0 inset-x-0 flex bg-neutral-900 border-t border-neutral-800 max-w-lg mx-auto left-0 right-0"
+        style={{ paddingBottom: 'env(safe-area-inset-bottom)' }}
+      >
         {NAV_ITEMS.map((item) => (
           <NavLink key={item.to} to={item.to} end={item.end} className={navLinkClass}>
             <span className="text-lg">{item.icon}</span>
