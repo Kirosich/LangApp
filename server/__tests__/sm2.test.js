@@ -52,4 +52,14 @@ describe('calculateNextReview (SM-2)', () => {
     expect(() => calculateNextReview(FRESH, 6, NOW)).toThrow();
     expect(() => calculateNextReview(FRESH, -1, NOW)).toThrow();
   });
+
+  it('caps the interval so many consecutive easy reviews never overflow Date', () => {
+    let progress = FRESH;
+    for (let i = 0; i < 40; i++) {
+      progress = calculateNextReview(progress, 5, NOW);
+    }
+    expect(progress.interval_days).toBeLessThanOrEqual(3650);
+    expect(() => new Date(progress.due_date)).not.toThrow();
+    expect(Number.isNaN(new Date(progress.due_date).getTime())).toBe(false);
+  });
 });

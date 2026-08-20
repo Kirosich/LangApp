@@ -1,3 +1,5 @@
+const MAX_INTERVAL_DAYS = 3650; // ~10 years — prevents unbounded growth from overflowing Date
+
 function formatDate(date) {
   return date.toISOString().slice(0, 10);
 }
@@ -36,6 +38,8 @@ export function calculateNextReview(progress, quality, now = new Date()) {
     }
     repetitions += 1;
   }
+
+  interval = Math.min(interval, MAX_INTERVAL_DAYS);
 
   ef = ef + (0.1 - (5 - quality) * (0.08 + (5 - quality) * 0.02));
   if (ef < 1.3) ef = 1.3;
