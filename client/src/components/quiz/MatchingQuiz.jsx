@@ -9,7 +9,7 @@ function shuffle(array) {
   return arr;
 }
 
-export default function MatchingQuiz({ rounds, onFinish }) {
+export default function MatchingQuiz({ rounds, onFinish, onProgress }) {
   const totalPairs = useMemo(() => rounds.reduce((sum, r) => sum + r.length, 0), [rounds]);
 
   const [roundIndex, setRoundIndex] = useState(0);
@@ -35,6 +35,7 @@ export default function MatchingQuiz({ rounds, onFinish }) {
     if (termCard.translation_ru === text && termCard.card_id === cardId) {
       setMatchedIds((prev) => new Set(prev).add(cardId));
       setSelectedTermId(null);
+      onProgress?.();
     } else {
       setMistakes((m) => m + 1);
       setWrongPair({ termId: selectedTermId, cardId });

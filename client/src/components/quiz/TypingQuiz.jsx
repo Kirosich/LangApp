@@ -1,7 +1,7 @@
 import { useState } from 'react';
 import { isCloseEnough } from '../../utils/levenshtein';
 
-export default function TypingQuiz({ questions, onFinish }) {
+export default function TypingQuiz({ questions, onFinish, onProgress }) {
   const [index, setIndex] = useState(0);
   const [value, setValue] = useState('');
   const [checked, setChecked] = useState(null); // null | 'correct' | 'incorrect'
@@ -16,6 +16,7 @@ export default function TypingQuiz({ questions, onFinish }) {
     const correct = isCloseEnough(value, question.expected_answer, 1);
     setChecked(correct ? 'correct' : 'incorrect');
     if (correct) setScore((s) => s + 1);
+    onProgress?.();
   }
 
   function next() {

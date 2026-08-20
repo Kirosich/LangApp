@@ -1,6 +1,6 @@
 import { useState } from 'react';
 
-export default function ChoiceQuiz({ questions, onFinish }) {
+export default function ChoiceQuiz({ questions, onFinish, onProgress }) {
   const [index, setIndex] = useState(0);
   const [selected, setSelected] = useState(null);
   const [score, setScore] = useState(0);
@@ -12,6 +12,7 @@ export default function ChoiceQuiz({ questions, onFinish }) {
     if (selected) return;
     setSelected(option);
     if (option === question.correct_answer) setScore((s) => s + 1);
+    onProgress?.();
   }
 
   function next() {

@@ -8,6 +8,13 @@ const LANGUAGE_TABS = [
   { value: 'en', label: 'English' }
 ];
 
+function formatMinutes(totalMinutes) {
+  const hours = Math.floor(totalMinutes / 60);
+  const minutes = totalMinutes % 60;
+  if (hours === 0) return `${minutes} мин`;
+  return `${hours} ч ${minutes} мин`;
+}
+
 export default function Dashboard() {
   const [stats, setStats] = useState(null);
   const [error, setError] = useState('');
@@ -52,6 +59,17 @@ export default function Dashboard() {
         <ActionButton to="/cards/new" label="Добавить карточку" icon="➕" />
         <ActionButton to="/browse" label="Все карточки" icon="🗂️" />
       </div>
+
+      {stats && (
+        <div>
+          <h2 className="text-sm text-neutral-400 mb-2">Время в этом месяце</h2>
+          <div className="grid grid-cols-3 gap-3">
+            <StatCard label="Сегодня" value={formatMinutes(stats.total_minutes_today)} />
+            <StatCard label="За неделю" value={formatMinutes(stats.total_minutes_this_week)} />
+            <StatCard label="Всего" value={formatMinutes(stats.total_minutes_all_time)} />
+          </div>
+        </div>
+      )}
 
       {stats?.by_theme?.length > 0 && (
         <div>

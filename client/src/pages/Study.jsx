@@ -1,6 +1,7 @@
 import { useEffect, useState, useCallback } from 'react';
 import { Link, useSearchParams } from 'react-router-dom';
 import { api } from '../api/client';
+import { useStudySession } from '../hooks/useStudySession';
 
 const RATINGS = [
   { label: 'Заново', quality: 1, className: 'bg-red-600 hover:bg-red-500' },
@@ -20,6 +21,7 @@ export default function Study() {
   const [flipped, setFlipped] = useState(false);
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState('');
+  const { recordCard } = useStudySession('study');
 
   useEffect(() => {
     api.getDueCards({ language }).then(setCards).catch((e) => setError(e.message));
@@ -44,6 +46,7 @@ export default function Study() {
     setSubmitting(true);
     try {
       await api.reviewCard(card.id, quality);
+      recordCard();
       setFlipped(false);
       setIndex((i) => i + 1);
     } catch (e) {

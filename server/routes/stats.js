@@ -10,8 +10,10 @@ function addDays(dateStr, days) {
 }
 
 function computeStreak() {
-  const rows = db.prepare('SELECT DISTINCT reviewed_at FROM review_log ORDER BY reviewed_at DESC').all();
-  const days = new Set(rows.map((r) => r.reviewed_at));
+  const rows = db
+    .prepare(`SELECT DISTINCT date(started_at) AS day FROM study_sessions WHERE ended_at IS NOT NULL`)
+    .all();
+  const days = new Set(rows.map((r) => r.day));
 
   const today = new Date().toISOString().slice(0, 10);
   let cursor = today;
@@ -29,9 +31,21 @@ function computeStreak() {
   return streak;
 }
 
+function sumMinutes(whereClause, params = []) {
+  const row = db
+    .prepare(
+      `SELECT COALESCE(SUM((julianday(ended_at) - julianday(started_at)) * 24 * 60), 0) AS minutes
+       FROM study_sessions
+       WHERE ended_at IS NOT NULL ${whereClause}`
+    )
+    .get(...params);
+  return Math.round(row.minutes);
+}
+
 statsRouter.get('/', (req, res) => {
   const { language } = req.query;
   const today = new Date().toISOString().slice(0, 10);
+  const weekAgo = addDays(today, -6);
 
   const cardConditions = [];
   const cardParams = [];
@@ -61,6 +75,9 @@ statsRouter.get('/', (req, res) => {
     total_cards: totalCards,
     due_today: dueToday,
     streak_days: computeStreak(),
-    by_theme: byTheme
+    by_theme: byTheme,
+    total_minutes_today: sumMinutes('AND date(started_at) = ?', [today]),
+    total_minutes_this_week: sumMinutes('AND date(started_at) >= ?', [weekAgo]),
+    total_minutes_all_time: sumMinutes('')
   });
 });

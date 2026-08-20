@@ -150,15 +150,10 @@ cardsRouter.post('/:id/review', (req, res) => {
 
   const next = calculateNextReview(progress, quality);
 
-  const updateAndLog = db.transaction(() => {
-    db.prepare(
-      `UPDATE progress SET easiness_factor = ?, interval_days = ?, repetitions = ?, due_date = ?, last_reviewed = ?
-       WHERE card_id = ?`
-    ).run(next.easiness_factor, next.interval_days, next.repetitions, next.due_date, next.last_reviewed, id);
-
-    db.prepare(`INSERT INTO review_log (reviewed_at) VALUES (?)`).run(next.last_reviewed);
-  });
-  updateAndLog();
+  db.prepare(
+    `UPDATE progress SET easiness_factor = ?, interval_days = ?, repetitions = ?, due_date = ?, last_reviewed = ?
+     WHERE card_id = ?`
+  ).run(next.easiness_factor, next.interval_days, next.repetitions, next.due_date, next.last_reviewed, id);
 
   res.json({ card_id: Number(id), ...next });
 });

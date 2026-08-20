@@ -70,7 +70,22 @@ export const api = {
   updateCard: (id, card) => apiFetch(`/api/cards/${id}`, { method: 'PUT', body: JSON.stringify(card) }),
   deleteCard: (id) => apiFetch(`/api/cards/${id}`, { method: 'DELETE' }),
   reviewCard: (id, quality) => apiFetch(`/api/cards/${id}/review`, { method: 'POST', body: JSON.stringify({ quality }) }),
-  getQuiz: (params = {}) => apiFetch(withQuery('/api/quiz', params))
+  getQuiz: (params = {}) => apiFetch(withQuery('/api/quiz', params)),
+  startSession: (sessionType) =>
+    apiFetch('/api/sessions/start', { method: 'POST', body: JSON.stringify({ session_type: sessionType }) }),
+  endSession: (id, cardsReviewed) =>
+    apiFetch(`/api/sessions/${id}/end`, { method: 'POST', body: JSON.stringify({ cards_reviewed: cardsReviewed }) })
 };
+
+export function endSessionOnUnload(id, cardsReviewed) {
+  const credentials = getStoredCredentials();
+  if (!credentials) return;
+  fetch(`/api/sessions/${id}/end`, {
+    method: 'POST',
+    keepalive: true,
+    headers: { Authorization: `Basic ${credentials}`, 'Content-Type': 'application/json' },
+    body: JSON.stringify({ cards_reviewed: cardsReviewed })
+  }).catch(() => {});
+}
 
 export { ApiError };

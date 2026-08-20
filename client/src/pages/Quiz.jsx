@@ -1,6 +1,6 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { Link, useSearchParams } from 'react-router-dom';
-import { api } from '../api/client';
+import { api, endSessionOnUnload } from '../api/client';
 import ChoiceQuiz from '../components/quiz/ChoiceQuiz';
 import TypingQuiz from '../components/quiz/TypingQuiz';
 import MatchingQuiz from '../components/quiz/MatchingQuiz';
@@ -10,6 +10,12 @@ const TYPE_OPTIONS = [
   { value: 'typing', label: 'Ввод с клавиатуры' },
   { value: 'matching', label: 'Сопоставление пар' }
 ];
+
+const SESSION_TYPE_FOR_QUIZ = {
+  choice: 'quiz_choice',
+  typing: 'quiz_typing',
+  matching: 'quiz_matching'
+};
 
 export default function Quiz() {
   const [searchParams] = useSearchParams();
@@ -25,8 +31,31 @@ export default function Quiz() {
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
 
+  const sessionIdRef = useRef(null);
+  const cardsReviewedRef = useRef(0);
+  const sessionEndedRef = useRef(true);
+
   useEffect(() => {
     api.getStats().then((s) => setThemes(s.by_theme.map((t) => t.theme))).catch(() => {});
+  }, []);
+
+  function endActiveSession() {
+    if (sessionEndedRef.current || !sessionIdRef.current) return;
+    sessionEndedRef.current = true;
+    api.endSession(sessionIdRef.current, cardsReviewedRef.current).catch(() => {});
+  }
+
+  useEffect(() => {
+    function handlePageHide() {
+      if (!sessionEndedRef.current && sessionIdRef.current) {
+        endSessionOnUnload(sessionIdRef.current, cardsReviewedRef.current);
+      }
+    }
+    window.addEventListener('pagehide', handlePageHide);
+    return () => {
+      window.removeEventListener('pagehide', handlePageHide);
+      endActiveSession();
+    };
   }, []);
 
   async function start(e) {
@@ -37,6 +66,11 @@ export default function Quiz() {
       const data = await api.getQuiz({ type, theme, language, count });
       setQuizData(data);
       setStage('playing');
+
+      cardsReviewedRef.current = 0;
+      sessionEndedRef.current = false;
+      const session = await api.startSession(SESSION_TYPE_FOR_QUIZ[type]);
+      sessionIdRef.current = session.id;
     } catch (e) {
       setError(e.message);
     } finally {
@@ -44,7 +78,12 @@ export default function Quiz() {
     }
   }
 
+  function progress() {
+    cardsReviewedRef.current += 1;
+  }
+
   function finish(score) {
+    endActiveSession();
     setResult(score);
     setStage('result');
   }
@@ -79,21 +118,21 @@ export default function Quiz() {
     if (quizData.type === 'choice' && quizData.questions.length > 0) {
       return (
         <div className="p-4 max-w-lg mx-auto">
-          <ChoiceQuiz questions={quizData.questions} onFinish={finish} />
+          <ChoiceQuiz questions={quizData.questions} onFinish={finish} onProgress={progress} />
         </div>
       );
     }
     if (quizData.type === 'typing' && quizData.questions.length > 0) {
       return (
         <div className="p-4 max-w-lg mx-auto">
-          <TypingQuiz questions={quizData.questions} onFinish={finish} />
+          <TypingQuiz questions={quizData.questions} onFinish={finish} onProgress={progress} />
         </div>
       );
     }
     if (quizData.type === 'matching' && quizData.rounds.length > 0) {
       return (
         <div className="p-4 max-w-lg mx-auto">
-          <MatchingQuiz rounds={quizData.rounds} onFinish={finish} />
+          <MatchingQuiz rounds={quizData.rounds} onFinish={finish} onProgress={progress} />
         </div>
       );
     }
