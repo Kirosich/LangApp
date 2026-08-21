@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { api } from '../api/client';
+import { useLanguage } from '../context/LanguageContext';
 import LevelCard from '../components/progress/LevelCard';
 import Heatmap from '../components/progress/Heatmap';
 import CumulativeChart from '../components/progress/CumulativeChart';
@@ -14,13 +15,6 @@ import WeeklyRecap from '../components/progress/WeeklyRecap';
 import BacklogWidget from '../components/progress/BacklogWidget';
 import QuestsWidget from '../components/progress/QuestsWidget';
 
-const LANGUAGE_TABS = [
-  { value: '', label: 'Все' },
-  { value: 'kz', label: 'Казахский' },
-  { value: 'en', label: 'English' }
-];
-const LANGUAGE_LABEL = { kz: 'Казахский', en: 'English' };
-
 function formatMinutes(totalMinutes) {
   const hours = Math.floor(totalMinutes / 60);
   const minutes = totalMinutes % 60;
@@ -30,9 +24,9 @@ function formatMinutes(totalMinutes) {
 
 export default function Dashboard() {
   const navigate = useNavigate();
+  const { language } = useLanguage();
   const [stats, setStats] = useState(null);
   const [error, setError] = useState('');
-  const [language, setLanguage] = useState('');
   const [startingWorkout, setStartingWorkout] = useState(false);
 
   async function startWorkout() {
@@ -63,10 +57,6 @@ export default function Dashboard() {
   const [weeklyRecap, setWeeklyRecap] = useState(null);
   const [backlogSummary, setBacklogSummary] = useState(null);
   const [quests, setQuests] = useState(null);
-  // Only populated on the "Все" tab -- {kz: {...}, en: {...}} pairs for
-  // the explicit side-by-side comparison, instead of one blurred number.
-  const [compareSummary, setCompareSummary] = useState(null);
-  const [compareQuests, setCompareQuests] = useState(null);
 
   function loadBacklogSummary() {
     api.getBacklogSummary().then(setBacklogSummary).catch(() => {});
@@ -77,31 +67,14 @@ export default function Dashboard() {
     loadBacklogSummary();
   }
 
-  // Everything that depends on which language tab is active -- refetches
-  // whenever it changes. On a specific language, each widget gets that
-  // language's own numbers. On "Все", nothing here is a blurred mix
-  // anymore: the combined fetch stays (for problem-cards/badges, which
-  // stay app-wide by design) and a separate kz/en pair loads for the
-  // side-by-side comparison blocks.
+  // Everything here is scoped to the one active language -- no more
+  // "Все" tab, no more blended numbers to unblend on this page.
   useEffect(() => {
     api.getStats({ language }).then(setStats).catch((e) => setError(e.message));
-    api.getGamificationSummary(language || undefined).then(setSummary).catch(() => {});
-    api.getBadges(language || undefined).then(setBadges).catch(() => {});
-    api.getProblemCards(language || undefined).then(setProblemCards).catch(() => {});
-
-    if (language) {
-      api.getQuests(language).then(setQuests).catch(() => {});
-      setCompareSummary(null);
-      setCompareQuests(null);
-    } else {
-      setQuests(null);
-      Promise.all([api.getGamificationSummary('kz'), api.getGamificationSummary('en')])
-        .then(([kz, en]) => setCompareSummary({ kz, en }))
-        .catch(() => {});
-      Promise.all([api.getQuests('kz'), api.getQuests('en')])
-        .then(([kz, en]) => setCompareQuests({ kz, en }))
-        .catch(() => {});
-    }
+    api.getGamificationSummary(language).then(setSummary).catch(() => {});
+    api.getBadges(language).then(setBadges).catch(() => {});
+    api.getProblemCards(language).then(setProblemCards).catch(() => {});
+    api.getQuests(language).then(setQuests).catch(() => {});
   }, [language]);
 
   useEffect(() => {
@@ -115,28 +88,10 @@ export default function Dashboard() {
     loadBacklogSummary();
   }, []);
 
-  const actionSuffix = language ? `?language=${language}` : '';
-  const practiceSuffix = language ? `?language=${language}&practice=100` : '?practice=100';
-  const sentenceSuffix = language ? `?language=${language}&type=sentence` : '?type=sentence';
+  const backlogRow = backlogSummary?.find((r) => r.language === language) ?? null;
 
   return (
     <div className="p-4 max-w-lg mx-auto space-y-6">
-      <div className="flex gap-2">
-        {LANGUAGE_TABS.map((tab) => (
-          <button
-            key={tab.value}
-            onClick={() => setLanguage(tab.value)}
-            className={`flex-1 rounded-lg px-3 py-2 text-sm font-medium transition-colors ${
-              language === tab.value
-                ? 'bg-indigo-600 text-white'
-                : 'bg-neutral-900 text-neutral-400 border border-neutral-800 hover:bg-neutral-800'
-            }`}
-          >
-            {tab.label}
-          </button>
-        ))}
-      </div>
-
       <button
         onClick={startWorkout}
         disabled={startingWorkout}
@@ -149,7 +104,7 @@ export default function Dashboard() {
 
       <div>
         <h2 className="text-sm text-neutral-400 mb-2">Квесты</h2>
-        {language ? <QuestsWidget quests={quests} /> : <QuestsCompare compare={compareQuests} />}
+        <QuestsWidget quests={quests} />
       </div>
 
       <div className="grid grid-cols-2 gap-3">
@@ -162,12 +117,12 @@ export default function Dashboard() {
       {error && <p className="text-sm text-red-400">{error}</p>}
 
       <div className="grid grid-cols-2 gap-3">
-        <ActionButton to={`/study${actionSuffix}`} label="Учить" icon="📚" />
-        <ActionButton to={`/quiz${actionSuffix}`} label="Квиз" icon="🎯" />
+        <ActionButton to="/study" label="Учить" icon="📚" />
+        <ActionButton to="/quiz" label="Квиз" icon="🎯" />
         <ActionButton to="/cards/new" label="Добавить карточку" icon="➕" />
         <ActionButton to="/browse" label="Все карточки" icon="🗂️" />
-        <ActionButton to={`/study${practiceSuffix}`} label="Тренировка · 100 слов" icon="🔁" className="col-span-2" />
-        <ActionButton to={`/quiz${sentenceSuffix}`} label="Собери предложение" icon="🧩" className="col-span-2" />
+        <ActionButton to="/study?practice=100" label="Тренировка · 100 слов" icon="🔁" className="col-span-2" />
+        <ActionButton to="/quiz?type=sentence" label="Собери предложение" icon="🧩" className="col-span-2" />
         <ActionButton to="/proficiency-test" label="Тест на уровень" icon="📋" className="col-span-2" />
       </div>
 
@@ -178,10 +133,10 @@ export default function Dashboard() {
             Настройки
           </Link>
         </div>
-        <BacklogWidget summary={backlogSummary} onBoost={handleBoost} />
+        {backlogRow ? <BacklogWidget summary={[backlogRow]} onBoost={handleBoost} /> : <p className="text-sm text-neutral-500">Загрузка…</p>}
       </div>
 
-      {stats && <TimeTable stats={stats} />}
+      {stats && <TimeCard stats={stats} language={language} />}
 
       {stats?.by_theme?.length > 0 && (
         <div>
@@ -200,17 +155,12 @@ export default function Dashboard() {
       <div className="space-y-4 pt-2 border-t border-neutral-800">
         <h2 className="text-sm font-semibold text-neutral-300 pt-2">Прогресс</h2>
 
-        {language ? (
-          <>
-            <LevelCard summary={summary} />
-            <div>
-              <h3 className="text-xs text-neutral-500 mb-2">Личные рекорды</h3>
-              <RecordsWidget summary={summary} />
-            </div>
-          </>
-        ) : (
-          <LevelRecordsCompare compare={compareSummary} />
-        )}
+        <LevelCard summary={summary} />
+
+        <div>
+          <h3 className="text-xs text-neutral-500 mb-2">Личные рекорды</h3>
+          <RecordsWidget summary={summary} />
+        </div>
 
         <div>
           <h3 className="text-xs text-neutral-500 mb-2">Что ты уже можешь</h3>
@@ -253,92 +203,23 @@ export default function Dashboard() {
 
         <div>
           <h3 className="text-xs text-neutral-500 mb-2">Проблемные карточки</h3>
-          <ProblemCards cards={problemCards} onChange={() => api.getProblemCards(language || undefined).then(setProblemCards).catch(() => {})} />
+          <ProblemCards cards={problemCards} onChange={() => api.getProblemCards(language).then(setProblemCards).catch(() => {})} />
         </div>
       </div>
     </div>
   );
 }
 
-// "Все" tab: two mini level/records blocks side by side instead of one
-// number that used to silently mix both languages.
-function LevelRecordsCompare({ compare }) {
-  if (!compare) return <p className="text-sm text-neutral-500">Загрузка…</p>;
-
-  return (
-    <div className="grid grid-cols-2 gap-3">
-      {['kz', 'en'].map((lang) => (
-        <div key={lang} className="space-y-2">
-          <div className="text-xs text-neutral-500 text-center">{LANGUAGE_LABEL[lang]}</div>
-          <LevelCard summary={compare[lang]} />
-          <RecordsCompact summary={compare[lang]} />
-        </div>
-      ))}
-    </div>
-  );
-}
-
-function RecordsCompact({ summary }) {
-  if (!summary) return null;
-  return (
-    <div className="rounded-xl border border-neutral-800 bg-neutral-900 p-2 text-center text-[11px] text-neutral-400 space-y-0.5">
-      <div>Streak: {summary.longest_streak} дн.</div>
-      <div>Карточек/день: {summary.best_day_cards}</div>
-    </div>
-  );
-}
-
-// "Все" tab: both languages' quests stacked with labels, rather than
-// dropping quests entirely -- goals are short enough that two sets
-// aren't much more cluttered than one.
-function QuestsCompare({ compare }) {
-  if (!compare) return <p className="text-sm text-neutral-500">Загрузка…</p>;
-
-  return (
-    <div className="space-y-4">
-      {['kz', 'en'].map((lang) => (
-        <div key={lang}>
-          <div className="text-xs text-neutral-500 mb-2">{LANGUAGE_LABEL[lang]}</div>
-          <QuestsWidget quests={compare[lang]} />
-        </div>
-      ))}
-    </div>
-  );
-}
-
-// One compact table instead of 9 separate StatCards -- rows are
-// languages (kz/en/combined), columns are periods, with a small header
-// row instead of a label per number.
-function TimeTable({ stats }) {
-  const rows = [
-    { label: 'Казахский', minutes: stats.minutes_by_language.kz },
-    { label: 'English', minutes: stats.minutes_by_language.en },
-    {
-      label: 'Всего*',
-      minutes: { today: stats.total_minutes_today, this_week: stats.total_minutes_this_week, all_time: stats.total_minutes_all_time }
-    }
-  ];
-
+function TimeCard({ stats, language }) {
+  const minutes = stats.minutes_by_language[language];
   return (
     <div>
       <h2 className="text-sm text-neutral-400 mb-2">Время</h2>
-      <div className="rounded-xl border border-neutral-800 bg-neutral-900 overflow-hidden">
-        <div className="grid grid-cols-4 text-[11px] text-neutral-500 px-3 py-2 border-b border-neutral-800">
-          <span></span>
-          <span className="text-right">Сегодня</span>
-          <span className="text-right">Неделя</span>
-          <span className="text-right">Всего</span>
-        </div>
-        {rows.map((row) => (
-          <div key={row.label} className="grid grid-cols-4 text-sm px-3 py-2 border-b border-neutral-800 last:border-0">
-            <span className="text-neutral-300">{row.label}</span>
-            <span className="text-right">{formatMinutes(row.minutes.today)}</span>
-            <span className="text-right">{formatMinutes(row.minutes.this_week)}</span>
-            <span className="text-right">{formatMinutes(row.minutes.all_time)}</span>
-          </div>
-        ))}
+      <div className="grid grid-cols-3 gap-3">
+        <StatCard label="Сегодня" value={formatMinutes(minutes.today)} />
+        <StatCard label="За неделю" value={formatMinutes(minutes.this_week)} />
+        <StatCard label="Всего" value={formatMinutes(minutes.all_time)} />
       </div>
-      <p className="text-[10px] text-neutral-600 mt-1">* включает сессии без выбранного языка</p>
     </div>
   );
 }

@@ -1,6 +1,12 @@
 import { NavLink, Outlet } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
+import { useLanguage } from '../context/LanguageContext';
 import { useOnlineStatus } from '../hooks/useOnlineStatus';
+
+const LANGUAGE_OPTIONS = [
+  { value: 'kz', label: 'Казахский' },
+  { value: 'en', label: 'English' }
+];
 
 const NAV_ITEMS = [
   { to: '/', label: 'Дашборд', icon: '🏠', end: true },
@@ -20,6 +26,7 @@ function navLinkClass({ isActive }) {
 
 export default function Layout() {
   const { logout } = useAuth();
+  const { language, setLanguage } = useLanguage();
   const online = useOnlineStatus();
 
   return (
@@ -30,6 +37,22 @@ export default function Layout() {
           Выйти
         </button>
       </header>
+
+      <div className="shrink-0 flex gap-1.5 px-4 py-2 border-b border-neutral-800 bg-neutral-950/95">
+        {LANGUAGE_OPTIONS.map((opt) => (
+          <button
+            key={opt.value}
+            onClick={() => setLanguage(opt.value)}
+            className={`flex-1 rounded-lg px-3 py-1.5 text-sm font-medium transition-colors ${
+              language === opt.value
+                ? 'bg-indigo-600 text-white'
+                : 'bg-neutral-900 text-neutral-400 border border-neutral-800 hover:bg-neutral-800'
+            }`}
+          >
+            {opt.label}
+          </button>
+        ))}
+      </div>
 
       {!online && (
         <div className="shrink-0 bg-amber-500/15 text-amber-400 text-xs text-center py-1.5 px-4">

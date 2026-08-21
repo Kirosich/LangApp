@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react';
 import { Link } from 'react-router-dom';
 import { api } from '../api/client';
+import { useLanguage } from '../context/LanguageContext';
 import { useTheoryThemeLinks } from '../hooks/useTheoryThemeLinks';
 import SpeakButton from '../components/SpeakButton';
 
@@ -22,18 +23,19 @@ function TheoryLink({ link }) {
 }
 
 export default function Browse() {
+  const { language } = useLanguage();
   const [cards, setCards] = useState([]);
   const [themes, setThemes] = useState([]);
   const [theme, setTheme] = useState('');
-  const [language, setLanguage] = useState('');
   const [status, setStatus] = useState('');
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(true);
   const themeLinks = useTheoryThemeLinks();
 
   useEffect(() => {
-    api.getStats().then((s) => setThemes(s.by_theme.map((t) => t.theme))).catch(() => {});
-  }, []);
+    setTheme('');
+    api.getStats({ language }).then((s) => setThemes(s.by_theme.map((t) => t.theme))).catch(() => {});
+  }, [language]);
 
   function load() {
     setLoading(true);
@@ -84,15 +86,6 @@ export default function Browse() {
       </div>
 
       <div className="flex flex-wrap gap-2 mb-4">
-        <select
-          value={language}
-          onChange={(e) => setLanguage(e.target.value)}
-          className="rounded-lg bg-neutral-900 border border-neutral-800 px-3 py-2 text-sm"
-        >
-          <option value="">Все языки</option>
-          <option value="kz">Казахский</option>
-          <option value="en">English</option>
-        </select>
         <select
           value={theme}
           onChange={(e) => setTheme(e.target.value)}

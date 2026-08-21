@@ -1,6 +1,7 @@
 import { useEffect, useState, useCallback, useRef } from 'react';
 import { Link, useSearchParams } from 'react-router-dom';
 import { api } from '../api/client';
+import { useLanguage } from '../context/LanguageContext';
 import { useStudySession } from '../hooks/useStudySession';
 import { useTheoryThemeLinks } from '../hooks/useTheoryThemeLinks';
 import { celebrateLevelUp, celebrateBadge } from '../utils/confetti';
@@ -31,7 +32,7 @@ function drawRound(pool, limit) {
 
 export default function Study() {
   const [searchParams] = useSearchParams();
-  const language = searchParams.get('language') || '';
+  const { language } = useLanguage();
   const cardIds = searchParams.get('cards') || '';
   const themeFilter = searchParams.get('theme') || '';
   const practiceParam = searchParams.get('practice');

@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState } from 'react';
 import { Link, useSearchParams } from 'react-router-dom';
 import { api, endSessionOnUnload } from '../api/client';
+import { useLanguage } from '../context/LanguageContext';
 import ChoiceQuiz from '../components/quiz/ChoiceQuiz';
 import TypingQuiz from '../components/quiz/TypingQuiz';
 import MatchingQuiz from '../components/quiz/MatchingQuiz';
@@ -26,12 +27,12 @@ const SESSION_TYPE_FOR_QUIZ = {
 
 export default function Quiz() {
   const [searchParams] = useSearchParams();
+  const { language } = useLanguage();
 
   const [stage, setStage] = useState('settings'); // settings | playing | result
   const [themes, setThemes] = useState([]);
   const [type, setType] = useState(searchParams.get('type') || 'choice');
   const [theme, setTheme] = useState('');
-  const [language, setLanguage] = useState(searchParams.get('language') || '');
   const [count, setCount] = useState(10);
   const [quizData, setQuizData] = useState(null);
   const [result, setResult] = useState(null);
@@ -44,8 +45,9 @@ export default function Quiz() {
   const sessionEndedRef = useRef(true);
 
   useEffect(() => {
-    api.getStats().then((s) => setThemes(s.by_theme.map((t) => t.theme))).catch(() => {});
-  }, []);
+    setTheme('');
+    api.getStats({ language }).then((s) => setThemes(s.by_theme.map((t) => t.theme))).catch(() => {});
+  }, [language]);
 
   function endActiveSession() {
     if (sessionEndedRef.current || !sessionIdRef.current) return null;
@@ -192,19 +194,6 @@ export default function Quiz() {
               </button>
             ))}
           </div>
-        </div>
-
-        <div>
-          <label className="block text-sm text-neutral-400 mb-1">Язык</label>
-          <select
-            value={language}
-            onChange={(e) => setLanguage(e.target.value)}
-            className="w-full rounded-lg bg-neutral-900 border border-neutral-800 px-3 py-2"
-          >
-            <option value="">Оба</option>
-            <option value="kz">Казахский</option>
-            <option value="en">English</option>
-          </select>
         </div>
 
         <div>

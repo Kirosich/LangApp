@@ -1,24 +1,24 @@
 import { useEffect, useState } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
 import { api } from '../api/client';
+import { useLanguage } from '../context/LanguageContext';
 
 const DEFAULT_THEMES = ['еда', 'природа', 'числа/время', 'глаголы', 'бытовое'];
-
-const EMPTY_FORM = {
-  language: 'kz',
-  term: '',
-  translation_ru: '',
-  transcription: '',
-  theme: '',
-  example_sentence: ''
-};
 
 export default function AddCard() {
   const { id } = useParams();
   const isEdit = Boolean(id);
   const navigate = useNavigate();
+  const { language } = useLanguage();
 
-  const [form, setForm] = useState(EMPTY_FORM);
+  const [form, setForm] = useState({
+    language,
+    term: '',
+    translation_ru: '',
+    transcription: '',
+    theme: '',
+    example_sentence: ''
+  });
   const [themes, setThemes] = useState(DEFAULT_THEMES);
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(isEdit);

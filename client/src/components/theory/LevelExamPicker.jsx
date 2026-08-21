@@ -1,14 +1,10 @@
 import { useEffect, useState } from 'react';
 import { api } from '../../api/client';
+import { useLanguage } from '../../context/LanguageContext';
 import LevelExamRound from './LevelExamRound';
 
-const LANGUAGE_TABS = [
-  { value: 'kz', label: 'Казахский' },
-  { value: 'en', label: 'English' }
-];
-
 export default function LevelExamPicker() {
-  const [language, setLanguage] = useState('kz');
+  const { language } = useLanguage();
   const [levels, setLevels] = useState(null);
   const [error, setError] = useState('');
   const [activeLevel, setActiveLevel] = useState(null);
@@ -35,22 +31,6 @@ export default function LevelExamPicker() {
 
   return (
     <div className="space-y-3">
-      <div className="flex gap-2">
-        {LANGUAGE_TABS.map((tab) => (
-          <button
-            key={tab.value}
-            onClick={() => setLanguage(tab.value)}
-            className={`flex-1 rounded-lg px-3 py-2 text-sm font-medium transition-colors ${
-              language === tab.value
-                ? 'bg-indigo-600 text-white'
-                : 'bg-neutral-900 text-neutral-400 border border-neutral-800 hover:bg-neutral-800'
-            }`}
-          >
-            {tab.label}
-          </button>
-        ))}
-      </div>
-
       <p className="text-xs text-neutral-500">
         Экзамен: до 50 случайных вопросов из накопленного пула по темам этого уровня. Нужно ответить правильно на все —
         частичный зачёт не считается. Пул растёт по мере добавления новых тем.
