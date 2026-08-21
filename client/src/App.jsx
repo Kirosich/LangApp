@@ -15,6 +15,8 @@ import DialogueDetail from './pages/DialogueDetail';
 import ReadingDetail from './pages/ReadingDetail';
 import MediaList from './pages/MediaList';
 import MediaDetail from './pages/MediaDetail';
+import ProficiencyTestList from './pages/ProficiencyTestList';
+import ProficiencyTestRound from './pages/ProficiencyTestRound';
 import Settings from './pages/Settings';
 import KnownWords from './pages/KnownWords';
 
@@ -50,6 +52,8 @@ function AppRoutes() {
         <Route path="theory/reading/:slug" element={<ReadingDetail />} />
         <Route path="media" element={<MediaList />} />
         <Route path="media/:id" element={<MediaDetail />} />
+        <Route path="proficiency-test" element={<ProficiencyTestList />} />
+        <Route path="proficiency-test/:id" element={<ProficiencyTestRound />} />
         <Route path="settings" element={<Settings />} />
         <Route path="known" element={<KnownWords />} />
       </Route>

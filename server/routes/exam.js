@@ -13,7 +13,7 @@ export const examRouter = Router();
 
 const EXAM_SIZE = 50;
 
-function poolFor(language, level) {
+export function poolFor(language, level) {
   return db
     .prepare(
       `SELECT d.id, d.prompt, d.correct_answer, d.distractors

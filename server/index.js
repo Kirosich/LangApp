@@ -17,6 +17,7 @@ import { coachingRouter } from './routes/coaching.js';
 import { examRouter } from './routes/exam.js';
 import { readingRouter } from './routes/reading.js';
 import { mediaRouter } from './routes/media.js';
+import { proficiencyTestRouter } from './routes/proficiencyTest.js';
 import { startTelegramBot } from './telegram/bot.js';
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
@@ -41,6 +42,7 @@ app.use('/api/coaching', coachingRouter);
 app.use('/api/exam', examRouter);
 app.use('/api/reading', readingRouter);
 app.use('/api/media', mediaRouter);
+app.use('/api/proficiency-tests', proficiencyTestRouter);
 
 app.use(express.static(CLIENT_DIST));
 app.get('*', (req, res) => {

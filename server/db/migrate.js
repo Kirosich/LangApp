@@ -348,6 +348,28 @@ function ensureSessionTypeAllowsMediaExam(db) {
   `);
 }
 
+function ensureSessionTypeAllowsProficiencyTest(db) {
+  const row = db.prepare(`SELECT sql FROM sqlite_master WHERE type = 'table' AND name = 'study_sessions'`).get();
+  if (!row || row.sql.includes("'proficiency_test'")) return;
+
+  db.exec(`
+    ALTER TABLE study_sessions RENAME TO study_sessions_old;
+    CREATE TABLE study_sessions (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      session_type TEXT NOT NULL CHECK (session_type IN ('study', 'quiz_choice', 'quiz_typing', 'quiz_matching', 'quiz_sentence', 'theory_drill', 'quiz_listening', 'level_exam', 'reading', 'media_exam', 'proficiency_test')),
+      started_at TEXT NOT NULL DEFAULT (datetime('now')),
+      ended_at TEXT,
+      cards_reviewed INTEGER NOT NULL DEFAULT 0,
+      correct_count INTEGER,
+      language TEXT
+    );
+    INSERT INTO study_sessions (id, session_type, started_at, ended_at, cards_reviewed, correct_count, language)
+      SELECT id, session_type, started_at, ended_at, cards_reviewed, correct_count, language FROM study_sessions_old;
+    DROP TABLE study_sessions_old;
+    CREATE INDEX IF NOT EXISTS idx_sessions_started_at ON study_sessions(started_at);
+  `);
+}
+
 export function runMigrations(db) {
   db.pragma('foreign_keys = ON');
   const migrate = db.transaction(() => {
@@ -527,6 +549,36 @@ export function runMigrations(db) {
     // Must run after study_sessions' `language` column exists (same reason
     // as the two calls above).
     ensureSessionTypeAllowsMediaExam(db);
+
+    // Proficiency test ("Тест на уровень"): a broader diagnostic than the
+    // grammar-only level exam -- vocabulary + grammar now (Этап A),
+    // listening and writing sections land in later stages. Only 4 fixed
+    // test definitions exist (kz-A1, kz-A2, en-B1, en-B2), enforced at
+    // the route layer, not by a CHECK here (keeps the schema from having
+    // to change if a 5th test gets added later).
+    db.exec(`
+      CREATE TABLE IF NOT EXISTS proficiency_tests (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        language TEXT NOT NULL CHECK (language IN ('kz', 'en')),
+        target_level TEXT NOT NULL,
+        started_at TEXT NOT NULL DEFAULT (datetime('now')),
+        completed_at TEXT,
+        overall_verdict TEXT
+      );
+      CREATE TABLE IF NOT EXISTS proficiency_test_sections (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        test_id INTEGER NOT NULL REFERENCES proficiency_tests(id) ON DELETE CASCADE,
+        section_type TEXT NOT NULL CHECK (section_type IN ('vocabulary', 'grammar', 'listening', 'writing')),
+        score_percent INTEGER,
+        skipped INTEGER NOT NULL DEFAULT 0,
+        skip_reason TEXT,
+        details TEXT,
+        created_at TEXT NOT NULL DEFAULT (datetime('now'))
+      );
+      CREATE INDEX IF NOT EXISTS idx_proficiency_tests_lang_level ON proficiency_tests(language, target_level);
+      CREATE INDEX IF NOT EXISTS idx_proficiency_test_sections_test ON proficiency_test_sections(test_id);
+    `);
+    ensureSessionTypeAllowsProficiencyTest(db);
   });
   migrate();
 }

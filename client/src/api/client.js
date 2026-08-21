@@ -136,7 +136,18 @@ export const api = {
   getMediaEntry: (id) => apiFetch(`/api/media/${id}`),
   getMediaExamQuestions: (id) => apiFetch(`/api/media/${id}/exam/questions`),
   submitMediaExamAttempt: (id, answers) =>
-    apiFetch(`/api/media/${id}/exam/attempts`, { method: 'POST', body: JSON.stringify({ answers }) })
+    apiFetch(`/api/media/${id}/exam/attempts`, { method: 'POST', body: JSON.stringify({ answers }) }),
+  getProficiencyTests: () => apiFetch('/api/proficiency-tests'),
+  startProficiencyTest: (language, target_level) =>
+    apiFetch('/api/proficiency-tests', { method: 'POST', body: JSON.stringify({ language, target_level }) }),
+  getProficiencyTest: (id) => apiFetch(`/api/proficiency-tests/${id}`),
+  getProficiencyVocabQuestions: (id) => apiFetch(`/api/proficiency-tests/${id}/sections/vocabulary/questions`),
+  submitProficiencyVocab: (id, answers) =>
+    apiFetch(`/api/proficiency-tests/${id}/sections/vocabulary`, { method: 'POST', body: JSON.stringify({ answers }) }),
+  getProficiencyGrammarQuestions: (id) => apiFetch(`/api/proficiency-tests/${id}/sections/grammar/questions`),
+  submitProficiencyGrammar: (id, answers) =>
+    apiFetch(`/api/proficiency-tests/${id}/sections/grammar`, { method: 'POST', body: JSON.stringify({ answers }) }),
+  completeProficiencyTest: (id) => apiFetch(`/api/proficiency-tests/${id}/complete`, { method: 'POST' })
 };
 
 export function endSessionOnUnload(id, cardsReviewed, correctCount = null) {

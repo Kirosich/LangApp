@@ -16,7 +16,8 @@ const VALID_SESSION_TYPES = new Set([
   'quiz_listening',
   'level_exam',
   'reading',
-  'media_exam'
+  'media_exam',
+  'proficiency_test'
 ]);
 
 sessionsRouter.post('/start', (req, res) => {

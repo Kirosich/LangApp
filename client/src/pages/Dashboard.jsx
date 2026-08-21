@@ -144,6 +144,7 @@ export default function Dashboard() {
         <ActionButton to="/browse" label="Все карточки" icon="🗂️" />
         <ActionButton to={`/study${practiceSuffix}`} label="Тренировка · 100 слов" icon="🔁" className="col-span-2" />
         <ActionButton to={`/quiz${sentenceSuffix}`} label="Собери предложение" icon="🧩" className="col-span-2" />
+        <ActionButton to="/proficiency-test" label="Тест на уровень" icon="📋" className="col-span-2" />
       </div>
 
       <div>
