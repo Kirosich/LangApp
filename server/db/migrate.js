@@ -123,7 +123,22 @@ const MIGRATIONS = [
     topic_slug TEXT NOT NULL REFERENCES theory_topics(slug) ON DELETE CASCADE,
     PRIMARY KEY (language, theme)
   )`,
-  `CREATE INDEX IF NOT EXISTS idx_theory_theme_links_slug ON theory_theme_links(topic_slug)`
+  `CREATE INDEX IF NOT EXISTS idx_theory_theme_links_slug ON theory_theme_links(topic_slug)`,
+  // Grammar drills attached to a reference topic (Stage 8, wave 2):
+  // multiple-choice questions where the distractors are meant to be
+  // realistic mistakes (wrong vowel-harmony/voicing variant of a suffix),
+  // not random noise -- content lives in seed-theory-drills.js.
+  `CREATE TABLE IF NOT EXISTS theory_drills (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    topic_id INTEGER NOT NULL REFERENCES theory_topics(id) ON DELETE CASCADE,
+    prompt TEXT NOT NULL,
+    correct_answer TEXT NOT NULL,
+    distractors TEXT NOT NULL,
+    explanation TEXT,
+    position INTEGER NOT NULL DEFAULT 0,
+    created_at TEXT NOT NULL DEFAULT (datetime('now'))
+  )`,
+  `CREATE INDEX IF NOT EXISTS idx_theory_drills_topic ON theory_drills(topic_id)`
 ];
 
 function addColumnIfMissing(db, table, column, definition) {
@@ -157,6 +172,27 @@ function ensureSessionTypeAllowsSentence(db) {
   `);
 }
 
+function ensureSessionTypeAllowsTheoryDrill(db) {
+  const row = db.prepare(`SELECT sql FROM sqlite_master WHERE type = 'table' AND name = 'study_sessions'`).get();
+  if (!row || row.sql.includes('theory_drill')) return;
+
+  db.exec(`
+    ALTER TABLE study_sessions RENAME TO study_sessions_old;
+    CREATE TABLE study_sessions (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      session_type TEXT NOT NULL CHECK (session_type IN ('study', 'quiz_choice', 'quiz_typing', 'quiz_matching', 'quiz_sentence', 'theory_drill')),
+      started_at TEXT NOT NULL DEFAULT (datetime('now')),
+      ended_at TEXT,
+      cards_reviewed INTEGER NOT NULL DEFAULT 0,
+      correct_count INTEGER
+    );
+    INSERT INTO study_sessions (id, session_type, started_at, ended_at, cards_reviewed, correct_count)
+      SELECT id, session_type, started_at, ended_at, cards_reviewed, correct_count FROM study_sessions_old;
+    DROP TABLE study_sessions_old;
+    CREATE INDEX IF NOT EXISTS idx_sessions_started_at ON study_sessions(started_at);
+  `);
+}
+
 export function runMigrations(db) {
   db.pragma('foreign_keys = ON');
   const migrate = db.transaction(() => {
@@ -165,6 +201,7 @@ export function runMigrations(db) {
     }
     addColumnIfMissing(db, 'study_sessions', 'correct_count', 'INTEGER');
     ensureSessionTypeAllowsSentence(db);
+    ensureSessionTypeAllowsTheoryDrill(db);
     addColumnIfMissing(db, 'cards', 'status', "TEXT NOT NULL DEFAULT 'active'");
     addColumnIfMissing(db, 'cards', 'activated_at', 'TEXT');
     addColumnIfMissing(db, 'cards', 'mastered_at', 'TEXT');

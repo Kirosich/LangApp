@@ -3,6 +3,7 @@ import { db } from '../db/index.js';
 import { calculateLevel } from '../xp/calculate.js';
 import { LEARNED_CONDITION_SQL } from '../db/learned.js';
 import { notifyLevelUp } from '../telegram/bot.js';
+import { shuffle } from '../utils/shuffle.js';
 
 export const theoryReferenceRouter = Router();
 
@@ -105,6 +106,29 @@ theoryReferenceRouter.get('/:slug', (req, res) => {
     sections,
     practice
   });
+});
+
+// Multiple-choice grammar drills for a topic (Stage 8). Like the vocab
+// quiz endpoints, the correct answer is sent straight to the client --
+// this is a personal single-user app, there's no anti-cheat concern, and
+// it keeps the client dumb (no separate "check answer" round trip).
+theoryReferenceRouter.get('/:slug/drills', (req, res) => {
+  const topic = db.prepare('SELECT id FROM theory_topics WHERE slug = ?').get(req.params.slug);
+  if (!topic) return res.status(404).json({ error: 'Topic not found' });
+
+  const rows = db
+    .prepare('SELECT id, prompt, correct_answer, distractors, explanation FROM theory_drills WHERE topic_id = ? ORDER BY position ASC')
+    .all(topic.id);
+
+  const drills = rows.map((row) => ({
+    id: row.id,
+    prompt: row.prompt,
+    options: shuffle([row.correct_answer, ...JSON.parse(row.distractors)]),
+    correct_answer: row.correct_answer,
+    explanation: row.explanation
+  }));
+
+  res.json({ slug: req.params.slug, drills });
 });
 
 theoryReferenceRouter.post('/:slug/read', (req, res) => {

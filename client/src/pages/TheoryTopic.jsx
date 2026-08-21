@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react';
 import { Link, useParams } from 'react-router-dom';
 import { api } from '../api/client';
 import { celebrateLevelUp } from '../utils/confetti';
+import TheoryDrillRound from '../components/theory/TheoryDrillRound';
 
 const SECTION_LABEL = {
   explanation: 'Объяснение',
@@ -15,6 +16,7 @@ export default function TheoryTopic() {
   const [topic, setTopic] = useState(null);
   const [error, setError] = useState('');
   const [marking, setMarking] = useState(false);
+  const [drillMode, setDrillMode] = useState(false);
 
   function load() {
     api.getTheoryTopic(slug).then(setTopic).catch((e) => setError(e.message));
@@ -55,33 +57,46 @@ export default function TheoryTopic() {
         <p className="text-sm text-neutral-500 mt-1">{topic.summary}</p>
       </div>
 
-      <div className="space-y-3">
-        {topic.sections.map((section, i) => (
-          <div
-            key={i}
-            className={`rounded-xl p-4 whitespace-pre-line text-sm leading-relaxed ${
-              section.section_type === 'common_mistake'
-                ? 'border border-amber-500/40 bg-amber-500/10'
-                : 'border border-neutral-800 bg-neutral-900'
-            }`}
-          >
-            <div className="text-xs uppercase tracking-wide text-neutral-500 mb-2">
-              {SECTION_LABEL[section.section_type] ?? section.section_type}
-            </div>
-            {section.content}
+      {drillMode ? (
+        <TheoryDrillRound slug={slug} onExit={() => setDrillMode(false)} />
+      ) : (
+        <>
+          <div className="space-y-3">
+            {topic.sections.map((section, i) => (
+              <div
+                key={i}
+                className={`rounded-xl p-4 whitespace-pre-line text-sm leading-relaxed ${
+                  section.section_type === 'common_mistake'
+                    ? 'border border-amber-500/40 bg-amber-500/10'
+                    : 'border border-neutral-800 bg-neutral-900'
+                }`}
+              >
+                <div className="text-xs uppercase tracking-wide text-neutral-500 mb-2">
+                  {SECTION_LABEL[section.section_type] ?? section.section_type}
+                </div>
+                {section.content}
+              </div>
+            ))}
           </div>
-        ))}
-      </div>
 
-      <button
-        onClick={markRead}
-        disabled={marking}
-        className="w-full rounded-xl bg-indigo-600 hover:bg-indigo-500 disabled:opacity-50 py-3 font-medium"
-      >
-        {topic.read ? 'Понятно, прочитать ещё раз ✓' : 'Понятно, отметить как изученное'}
-      </button>
+          <button
+            onClick={markRead}
+            disabled={marking}
+            className="w-full rounded-xl bg-indigo-600 hover:bg-indigo-500 disabled:opacity-50 py-3 font-medium"
+          >
+            {topic.read ? 'Понятно, прочитать ещё раз ✓' : 'Понятно, отметить как изученное'}
+          </button>
 
-      {topic.practice?.length > 0 && (
+          <button
+            onClick={() => setDrillMode(true)}
+            className="w-full rounded-xl border border-indigo-500/40 bg-indigo-500/10 hover:bg-indigo-500/20 text-indigo-300 py-3 font-medium"
+          >
+            🧠 Начать дриллы
+          </button>
+        </>
+      )}
+
+      {!drillMode && topic.practice?.length > 0 && (
         <div className="space-y-3">
           <div className="text-xs uppercase tracking-wide text-neutral-500">Практика</div>
           {topic.practice.map((p) => (
