@@ -10,7 +10,7 @@ function addDays(dateStr, days) {
   return d.toISOString().slice(0, 10);
 }
 
-function sumMinutes(whereClause, params = []) {
+export function sumMinutes(whereClause, params = []) {
   const row = db
     .prepare(
       `SELECT COALESCE(SUM((julianday(ended_at) - julianday(started_at)) * 24 * 60), 0) AS minutes

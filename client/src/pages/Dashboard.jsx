@@ -12,6 +12,7 @@ import ProblemCards from '../components/progress/ProblemCards';
 import Milestones from '../components/progress/Milestones';
 import WeeklyRecap from '../components/progress/WeeklyRecap';
 import BacklogWidget from '../components/progress/BacklogWidget';
+import QuestsWidget from '../components/progress/QuestsWidget';
 
 const LANGUAGE_TABS = [
   { value: '', label: 'Все' },
@@ -42,6 +43,7 @@ export default function Dashboard() {
   const [milestones, setMilestones] = useState(null);
   const [weeklyRecap, setWeeklyRecap] = useState(null);
   const [backlogSummary, setBacklogSummary] = useState(null);
+  const [quests, setQuests] = useState(null);
 
   function loadBacklogSummary() {
     api.getBacklogSummary().then(setBacklogSummary).catch(() => {});
@@ -67,6 +69,7 @@ export default function Dashboard() {
     api.getProblemCards().then(setProblemCards).catch(() => {});
     api.getMilestones().then(setMilestones).catch(() => {});
     api.getWeeklyRecap().then(setWeeklyRecap).catch(() => {});
+    api.getQuests().then(setQuests).catch(() => {});
     loadBacklogSummary();
   }, []);
 
@@ -93,6 +96,11 @@ export default function Dashboard() {
       </div>
 
       <WeeklyRecap recap={weeklyRecap} />
+
+      <div>
+        <h2 className="text-sm text-neutral-400 mb-2">Квесты</h2>
+        <QuestsWidget quests={quests} />
+      </div>
 
       <div className="grid grid-cols-2 gap-3">
         <StatCard label="К повторению сегодня" value={stats?.due_today ?? '—'} accent />

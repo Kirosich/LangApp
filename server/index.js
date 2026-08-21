@@ -12,6 +12,7 @@ import { theoryReferenceRouter } from './routes/theoryReference.js';
 import { gamificationRouter } from './routes/gamification.js';
 import { backlogRouter } from './routes/backlog.js';
 import { dialoguesRouter } from './routes/dialogues.js';
+import { questsRouter } from './routes/quests.js';
 import { startTelegramBot } from './telegram/bot.js';
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
@@ -31,6 +32,7 @@ app.use('/api/theory', theoryReferenceRouter);
 app.use('/api/gamification', gamificationRouter);
 app.use('/api/backlog', backlogRouter);
 app.use('/api/dialogues', dialoguesRouter);
+app.use('/api/quests', questsRouter);
 
 app.use(express.static(CLIENT_DIST));
 app.get('*', (req, res) => {

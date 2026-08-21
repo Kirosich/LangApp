@@ -8,7 +8,7 @@ import { LEARNED_CONDITION_SQL } from '../db/learned.js';
 
 export const gamificationRouter = Router();
 
-function addDays(dateStr, days) {
+export function addDays(dateStr, days) {
   const d = new Date(`${dateStr}T00:00:00Z`);
   d.setUTCDate(d.getUTCDate() + days);
   return d.toISOString().slice(0, 10);
@@ -203,7 +203,7 @@ gamificationRouter.get('/milestones', (req, res) => {
   );
 });
 
-function mondayOf(dateStr) {
+export function mondayOf(dateStr) {
   const d = new Date(`${dateStr}T00:00:00Z`);
   const day = d.getUTCDay();
   const diff = day === 0 ? -6 : 1 - day;
@@ -211,7 +211,7 @@ function mondayOf(dateStr) {
   return d.toISOString().slice(0, 10);
 }
 
-function weekTotals(db, startDate, endDate) {
+export function weekTotals(db, startDate, endDate) {
   const minutes = db
     .prepare(
       `SELECT COALESCE(SUM((julianday(ended_at) - julianday(started_at)) * 24 * 60), 0) AS minutes

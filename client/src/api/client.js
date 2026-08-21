@@ -108,6 +108,7 @@ export const api = {
   getDialogues: (language) => apiFetch(withQuery('/api/dialogues', { language })),
   getDialogue: (slug) => apiFetch(`/api/dialogues/${slug}`),
   markDialogueRead: (slug) => apiFetch(`/api/dialogues/${slug}/read`, { method: 'POST' }),
+  getQuests: () => apiFetch('/api/quests'),
   getTheoryTopic: (slug) => apiFetch(`/api/theory/${slug}`),
   markTheoryTopicRead: (slug) => apiFetch(`/api/theory/${slug}/read`, { method: 'POST' }),
   getKnownCards: (language) => apiFetch(withQuery('/api/cards/known', { language })),
