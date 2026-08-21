@@ -116,17 +116,21 @@ export const LEECH_CONDITION_SQL = `(p.easiness_factor <= ${LEECH_EF_THRESHOLD} 
 export const LEECH_ORDER_SQL = `(CASE WHEN p.fsrs_difficulty IS NOT NULL THEN 1 ELSE 0 END) DESC, p.fsrs_difficulty DESC, p.easiness_factor ASC`;
 
 gamificationRouter.get('/problem-cards', (req, res) => {
+  const { language } = req.query;
+  const languageClause = language ? 'AND c.language = ?' : '';
+  const languageParam = language ? [language] : [];
+
   const rows = db
     .prepare(
       `SELECT c.*, p.easiness_factor, p.interval_days, p.repetitions, p.due_date, p.last_reviewed, p.fsrs_difficulty
        FROM cards c
        JOIN progress p ON p.card_id = c.id
        WHERE (p.last_reviewed IS NOT NULL OR p.fsrs_last_review IS NOT NULL)
-         AND c.mastered_at IS NULL AND ${LEECH_CONDITION_SQL}
+         AND c.mastered_at IS NULL AND ${LEECH_CONDITION_SQL} ${languageClause}
        ORDER BY ${LEECH_ORDER_SQL}
        LIMIT 5`
     )
-    .all();
+    .all(...languageParam);
 
   res.json(
     rows.map((r) => ({

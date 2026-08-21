@@ -19,6 +19,7 @@ const LANGUAGE_TABS = [
   { value: 'kz', label: 'Казахский' },
   { value: 'en', label: 'English' }
 ];
+const LANGUAGE_LABEL = { kz: 'Казахский', en: 'English' };
 
 function formatMinutes(totalMinutes) {
   const hours = Math.floor(totalMinutes / 60);
@@ -62,6 +63,10 @@ export default function Dashboard() {
   const [weeklyRecap, setWeeklyRecap] = useState(null);
   const [backlogSummary, setBacklogSummary] = useState(null);
   const [quests, setQuests] = useState(null);
+  // Only populated on the "Все" tab -- {kz: {...}, en: {...}} pairs for
+  // the explicit side-by-side comparison, instead of one blurred number.
+  const [compareSummary, setCompareSummary] = useState(null);
+  const [compareQuests, setCompareQuests] = useState(null);
 
   function loadBacklogSummary() {
     api.getBacklogSummary().then(setBacklogSummary).catch(() => {});
@@ -72,22 +77,41 @@ export default function Dashboard() {
     loadBacklogSummary();
   }
 
+  // Everything that depends on which language tab is active -- refetches
+  // whenever it changes. On a specific language, each widget gets that
+  // language's own numbers. On "Все", nothing here is a blurred mix
+  // anymore: the combined fetch stays (for problem-cards/badges, which
+  // stay app-wide by design) and a separate kz/en pair loads for the
+  // side-by-side comparison blocks.
   useEffect(() => {
     api.getStats({ language }).then(setStats).catch((e) => setError(e.message));
+    api.getGamificationSummary(language || undefined).then(setSummary).catch(() => {});
+    api.getBadges(language || undefined).then(setBadges).catch(() => {});
+    api.getProblemCards(language || undefined).then(setProblemCards).catch(() => {});
+
+    if (language) {
+      api.getQuests(language).then(setQuests).catch(() => {});
+      setCompareSummary(null);
+      setCompareQuests(null);
+    } else {
+      setQuests(null);
+      Promise.all([api.getGamificationSummary('kz'), api.getGamificationSummary('en')])
+        .then(([kz, en]) => setCompareSummary({ kz, en }))
+        .catch(() => {});
+      Promise.all([api.getQuests('kz'), api.getQuests('en')])
+        .then(([kz, en]) => setCompareQuests({ kz, en }))
+        .catch(() => {});
+    }
   }, [language]);
 
   useEffect(() => {
-    api.getGamificationSummary().then(setSummary).catch(() => {});
     api.getHeatmap(90).then(setHeatmap).catch(() => {});
     api.getCumulative().then(setCumulative).catch(() => {});
     api.getTopicsBreakdown().then(setTopics).catch(() => {});
-    api.getBadges().then(setBadges).catch(() => {});
     api.getAccuracyTrend().then(setAccuracy).catch(() => {});
     api.getListeningAccuracyTrend().then(setListeningAccuracy).catch(() => {});
-    api.getProblemCards().then(setProblemCards).catch(() => {});
     api.getMilestones().then(setMilestones).catch(() => {});
     api.getWeeklyRecap().then(setWeeklyRecap).catch(() => {});
-    api.getQuests().then(setQuests).catch(() => {});
     loadBacklogSummary();
   }, []);
 
@@ -125,7 +149,7 @@ export default function Dashboard() {
 
       <div>
         <h2 className="text-sm text-neutral-400 mb-2">Квесты</h2>
-        <QuestsWidget quests={quests} />
+        {language ? <QuestsWidget quests={quests} /> : <QuestsCompare compare={compareQuests} />}
       </div>
 
       <div className="grid grid-cols-2 gap-3">
@@ -176,7 +200,17 @@ export default function Dashboard() {
       <div className="space-y-4 pt-2 border-t border-neutral-800">
         <h2 className="text-sm font-semibold text-neutral-300 pt-2">Прогресс</h2>
 
-        <LevelCard summary={summary} />
+        {language ? (
+          <>
+            <LevelCard summary={summary} />
+            <div>
+              <h3 className="text-xs text-neutral-500 mb-2">Личные рекорды</h3>
+              <RecordsWidget summary={summary} />
+            </div>
+          </>
+        ) : (
+          <LevelRecordsCompare compare={compareSummary} />
+        )}
 
         <div>
           <h3 className="text-xs text-neutral-500 mb-2">Что ты уже можешь</h3>
@@ -204,11 +238,6 @@ export default function Dashboard() {
         </div>
 
         <div>
-          <h3 className="text-xs text-neutral-500 mb-2">Личные рекорды</h3>
-          <RecordsWidget summary={summary} />
-        </div>
-
-        <div>
           <h3 className="text-xs text-neutral-500 mb-2">Точность в квизах по неделям</h3>
           {accuracy ? <AccuracyChart data={accuracy} /> : <p className="text-sm text-neutral-500">Загрузка…</p>}
         </div>
@@ -224,9 +253,55 @@ export default function Dashboard() {
 
         <div>
           <h3 className="text-xs text-neutral-500 mb-2">Проблемные карточки</h3>
-          <ProblemCards cards={problemCards} onChange={() => api.getProblemCards().then(setProblemCards).catch(() => {})} />
+          <ProblemCards cards={problemCards} onChange={() => api.getProblemCards(language || undefined).then(setProblemCards).catch(() => {})} />
         </div>
       </div>
+    </div>
+  );
+}
+
+// "Все" tab: two mini level/records blocks side by side instead of one
+// number that used to silently mix both languages.
+function LevelRecordsCompare({ compare }) {
+  if (!compare) return <p className="text-sm text-neutral-500">Загрузка…</p>;
+
+  return (
+    <div className="grid grid-cols-2 gap-3">
+      {['kz', 'en'].map((lang) => (
+        <div key={lang} className="space-y-2">
+          <div className="text-xs text-neutral-500 text-center">{LANGUAGE_LABEL[lang]}</div>
+          <LevelCard summary={compare[lang]} />
+          <RecordsCompact summary={compare[lang]} />
+        </div>
+      ))}
+    </div>
+  );
+}
+
+function RecordsCompact({ summary }) {
+  if (!summary) return null;
+  return (
+    <div className="rounded-xl border border-neutral-800 bg-neutral-900 p-2 text-center text-[11px] text-neutral-400 space-y-0.5">
+      <div>Streak: {summary.longest_streak} дн.</div>
+      <div>Карточек/день: {summary.best_day_cards}</div>
+    </div>
+  );
+}
+
+// "Все" tab: both languages' quests stacked with labels, rather than
+// dropping quests entirely -- goals are short enough that two sets
+// aren't much more cluttered than one.
+function QuestsCompare({ compare }) {
+  if (!compare) return <p className="text-sm text-neutral-500">Загрузка…</p>;
+
+  return (
+    <div className="space-y-4">
+      {['kz', 'en'].map((lang) => (
+        <div key={lang}>
+          <div className="text-xs text-neutral-500 mb-2">{LANGUAGE_LABEL[lang]}</div>
+          <QuestsWidget quests={compare[lang]} />
+        </div>
+      ))}
     </div>
   );
 }
