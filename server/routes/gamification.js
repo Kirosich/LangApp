@@ -50,7 +50,7 @@ gamificationRouter.get('/badges', (req, res) => {
 // routes/charts rather than one merged one: reading/typing/matching a
 // word and *hearing* it are different skills, so their accuracy numbers
 // stay on separate lines instead of diluting each other.
-function accuracyTrendFor(sessionTypes) {
+export function accuracyTrendFor(sessionTypes) {
   const placeholders = sessionTypes.map(() => '?').join(',');
   const rows = db
     .prepare(
