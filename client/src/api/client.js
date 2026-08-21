@@ -131,7 +131,12 @@ export const api = {
   getReadingText: (slug) => apiFetch(`/api/reading/${slug}`),
   markReadingRead: (slug) => apiFetch(`/api/reading/${slug}/read`, { method: 'POST' }),
   submitReadingExercises: (slug, answers) =>
-    apiFetch(`/api/reading/${slug}/exercises`, { method: 'POST', body: JSON.stringify({ answers }) })
+    apiFetch(`/api/reading/${slug}/exercises`, { method: 'POST', body: JSON.stringify({ answers }) }),
+  getMediaList: (languageFocus) => apiFetch(withQuery('/api/media', { language_focus: languageFocus })),
+  getMediaEntry: (id) => apiFetch(`/api/media/${id}`),
+  getMediaExamQuestions: (id) => apiFetch(`/api/media/${id}/exam/questions`),
+  submitMediaExamAttempt: (id, answers) =>
+    apiFetch(`/api/media/${id}/exam/attempts`, { method: 'POST', body: JSON.stringify({ answers }) })
 };
 
 export function endSessionOnUnload(id, cardsReviewed, correctCount = null) {

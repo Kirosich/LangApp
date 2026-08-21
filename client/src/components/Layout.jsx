@@ -8,6 +8,7 @@ const NAV_ITEMS = [
   { to: '/quiz', label: 'Квиз', icon: '🎯' },
   { to: '/browse', label: 'Карточки', icon: '🗂️' },
   { to: '/theory', label: 'Теория', icon: '📖' },
+  { to: '/media', label: 'Фильмы', icon: '🎬' },
   { to: '/known', label: 'Знания', icon: '🏅' }
 ];
 

@@ -326,6 +326,28 @@ function ensureSessionTypeAllowsReading(db) {
   `);
 }
 
+function ensureSessionTypeAllowsMediaExam(db) {
+  const row = db.prepare(`SELECT sql FROM sqlite_master WHERE type = 'table' AND name = 'study_sessions'`).get();
+  if (!row || row.sql.includes("'media_exam'")) return;
+
+  db.exec(`
+    ALTER TABLE study_sessions RENAME TO study_sessions_old;
+    CREATE TABLE study_sessions (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      session_type TEXT NOT NULL CHECK (session_type IN ('study', 'quiz_choice', 'quiz_typing', 'quiz_matching', 'quiz_sentence', 'theory_drill', 'quiz_listening', 'level_exam', 'reading', 'media_exam')),
+      started_at TEXT NOT NULL DEFAULT (datetime('now')),
+      ended_at TEXT,
+      cards_reviewed INTEGER NOT NULL DEFAULT 0,
+      correct_count INTEGER,
+      language TEXT
+    );
+    INSERT INTO study_sessions (id, session_type, started_at, ended_at, cards_reviewed, correct_count, language)
+      SELECT id, session_type, started_at, ended_at, cards_reviewed, correct_count, language FROM study_sessions_old;
+    DROP TABLE study_sessions_old;
+    CREATE INDEX IF NOT EXISTS idx_sessions_started_at ON study_sessions(started_at);
+  `);
+}
+
 export function runMigrations(db) {
   db.pragma('foreign_keys = ON');
   const migrate = db.transaction(() => {
@@ -450,6 +472,61 @@ export function runMigrations(db) {
     // Must run after study_sessions' `language` column exists (recreate
     // carries it through), same as ensureSessionTypeAllowsLevelExam.
     ensureSessionTypeAllowsReading(db);
+
+    // Movies/series section: a media entry is a thematic anchor, not a
+    // content source (see CLAUDE.md's copyright constraint) -- everything
+    // written about it (media_texts.body, comprehension_questions) is
+    // original writing "in the spirit of" the genre/setting, never a
+    // retelling. media_vocab_links is a plain many-to-many join onto the
+    // existing `cards` table -- vocab tied to a title still goes through
+    // the normal backlog/theme mechanism, this table just remembers which
+    // cards were picked for which title. comprehension_questions is a
+    // JSON array (not a separate table like reading_exercises) since each
+    // text only needs a handful and the exam pool reads the same JSON
+    // across all of an entry's texts -- one fewer table for a small
+    // amount of data per row.
+    db.exec(`
+      CREATE TABLE IF NOT EXISTS media_entries (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        title TEXT NOT NULL,
+        type TEXT NOT NULL CHECK (type IN ('movie', 'series')),
+        year INTEGER,
+        genre TEXT,
+        language_focus TEXT NOT NULL CHECK (language_focus IN ('kz', 'en')),
+        one_line_theme TEXT NOT NULL,
+        created_at TEXT NOT NULL DEFAULT (datetime('now'))
+      );
+      CREATE TABLE IF NOT EXISTS media_vocab_links (
+        media_entry_id INTEGER NOT NULL REFERENCES media_entries(id) ON DELETE CASCADE,
+        card_id INTEGER NOT NULL REFERENCES cards(id) ON DELETE CASCADE,
+        PRIMARY KEY (media_entry_id, card_id)
+      );
+      CREATE TABLE IF NOT EXISTS media_texts (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        media_entry_id INTEGER NOT NULL REFERENCES media_entries(id) ON DELETE CASCADE,
+        title TEXT NOT NULL,
+        level TEXT NOT NULL,
+        body TEXT NOT NULL,
+        comprehension_questions TEXT NOT NULL,
+        order_index INTEGER NOT NULL DEFAULT 0,
+        created_at TEXT NOT NULL DEFAULT (datetime('now'))
+      );
+      CREATE TABLE IF NOT EXISTS media_exam_results (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        media_entry_id INTEGER NOT NULL REFERENCES media_entries(id) ON DELETE CASCADE,
+        score INTEGER NOT NULL,
+        total INTEGER NOT NULL,
+        passed INTEGER NOT NULL,
+        taken_at TEXT NOT NULL DEFAULT (datetime('now'))
+      );
+      CREATE INDEX IF NOT EXISTS idx_media_vocab_links_entry ON media_vocab_links(media_entry_id);
+      CREATE INDEX IF NOT EXISTS idx_media_texts_entry ON media_texts(media_entry_id);
+      CREATE INDEX IF NOT EXISTS idx_media_exam_results_entry ON media_exam_results(media_entry_id);
+    `);
+
+    // Must run after study_sessions' `language` column exists (same reason
+    // as the two calls above).
+    ensureSessionTypeAllowsMediaExam(db);
   });
   migrate();
 }
