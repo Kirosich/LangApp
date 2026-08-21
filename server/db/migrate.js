@@ -313,6 +313,11 @@ export function runMigrations(db) {
     addColumnIfMissing(db, 'progress', 'fsrs_elapsed_days', 'REAL');
     addColumnIfMissing(db, 'progress', 'fsrs_scheduled_days', 'REAL');
     addColumnIfMissing(db, 'progress', 'fsrs_last_review', 'TEXT');
+
+    // CEFR level (A1/A2/B1/B2/C1) per card, nullable -- lets vocabulary
+    // growth be scoped by difficulty instead of just theme. Backfilled for
+    // existing cards by a one-off script, not here.
+    addColumnIfMissing(db, 'cards', 'level', 'TEXT');
   });
   migrate();
 }
