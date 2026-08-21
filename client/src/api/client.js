@@ -121,7 +121,12 @@ export const api = {
   updateBacklogSettings: (language, newCardsPerDay) =>
     apiFetch('/api/backlog/settings', { method: 'PUT', body: JSON.stringify({ language, new_cards_per_day: newCardsPerDay }) }),
   boostBacklog: (language, count) =>
-    apiFetch('/api/backlog/boost', { method: 'POST', body: JSON.stringify({ language, count }) })
+    apiFetch('/api/backlog/boost', { method: 'POST', body: JSON.stringify({ language, count }) }),
+  getExamLevels: (language) => apiFetch(withQuery('/api/exam/levels', { language })),
+  getExamQuestions: (language, level) => apiFetch(withQuery('/api/exam/questions', { language, level })),
+  submitExamAttempt: (language, level, answers) =>
+    apiFetch('/api/exam/attempts', { method: 'POST', body: JSON.stringify({ language, level, answers }) }),
+  getCoachingSummary: (language) => apiFetch(withQuery('/api/coaching/summary', { language }))
 };
 
 export function endSessionOnUnload(id, cardsReviewed, correctCount = null) {

@@ -278,6 +278,32 @@ function ensureSessionTypeAllowsListening(db) {
   `);
 }
 
+// Same recreate-table dance, widening the CHECK once more for the level
+// exam feature. Has to carry the `language` column through too (added
+// later via addColumnIfMissing), since a table recreate loses any column
+// not explicitly listed.
+function ensureSessionTypeAllowsLevelExam(db) {
+  const row = db.prepare(`SELECT sql FROM sqlite_master WHERE type = 'table' AND name = 'study_sessions'`).get();
+  if (!row || row.sql.includes('level_exam')) return;
+
+  db.exec(`
+    ALTER TABLE study_sessions RENAME TO study_sessions_old;
+    CREATE TABLE study_sessions (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      session_type TEXT NOT NULL CHECK (session_type IN ('study', 'quiz_choice', 'quiz_typing', 'quiz_matching', 'quiz_sentence', 'theory_drill', 'quiz_listening', 'level_exam')),
+      started_at TEXT NOT NULL DEFAULT (datetime('now')),
+      ended_at TEXT,
+      cards_reviewed INTEGER NOT NULL DEFAULT 0,
+      correct_count INTEGER,
+      language TEXT
+    );
+    INSERT INTO study_sessions (id, session_type, started_at, ended_at, cards_reviewed, correct_count, language)
+      SELECT id, session_type, started_at, ended_at, cards_reviewed, correct_count, language FROM study_sessions_old;
+    DROP TABLE study_sessions_old;
+    CREATE INDEX IF NOT EXISTS idx_sessions_started_at ON study_sessions(started_at);
+  `);
+}
+
 export function runMigrations(db) {
   db.pragma('foreign_keys = ON');
   const migrate = db.transaction(() => {
@@ -331,6 +357,27 @@ export function runMigrations(db) {
     // category's own level range is computed from its topics rather than
     // stored, so it can't drift out of sync.
     addColumnIfMissing(db, 'theory_topics', 'category', 'TEXT');
+
+    // Must run after the `language` column above -- it needs to carry that
+    // column through the table recreate.
+    ensureSessionTypeAllowsLevelExam(db);
+
+    // One row per exam attempt (not just the best/latest) -- keeps a
+    // full history, and "passed" is derived (score === total) rather than
+    // trusted from the client, matching how every other score in this app
+    // is server-computed.
+    db.exec(`
+      CREATE TABLE IF NOT EXISTS level_exam_attempts (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        language TEXT NOT NULL CHECK (language IN ('kz', 'en')),
+        level TEXT NOT NULL,
+        score INTEGER NOT NULL,
+        total INTEGER NOT NULL,
+        passed INTEGER NOT NULL,
+        taken_at TEXT NOT NULL DEFAULT (datetime('now'))
+      );
+      CREATE INDEX IF NOT EXISTS idx_level_exam_attempts_lang_level ON level_exam_attempts(language, level);
+    `);
   });
   migrate();
 }

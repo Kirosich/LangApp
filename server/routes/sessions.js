@@ -13,7 +13,8 @@ const VALID_SESSION_TYPES = new Set([
   'quiz_matching',
   'quiz_sentence',
   'theory_drill',
-  'quiz_listening'
+  'quiz_listening',
+  'level_exam'
 ]);
 
 sessionsRouter.post('/start', (req, res) => {
