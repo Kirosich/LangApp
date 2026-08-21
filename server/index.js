@@ -11,6 +11,7 @@ import { theoryRouter } from './routes/theory.js';
 import { theoryReferenceRouter } from './routes/theoryReference.js';
 import { gamificationRouter } from './routes/gamification.js';
 import { backlogRouter } from './routes/backlog.js';
+import { startTelegramBot } from './telegram/bot.js';
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const PORT = process.env.PORT || 3000;
@@ -37,3 +38,5 @@ app.get('*', (req, res) => {
 app.listen(PORT, () => {
   console.log(`langapp server listening on port ${PORT}`);
 });
+
+startTelegramBot();

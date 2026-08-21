@@ -5,6 +5,7 @@ import { xpForReview, STREAK_BONUS_XP, MASTER_XP, calculateLevel } from '../xp/c
 import { introduceDailyBacklog } from '../backlog/introduce.js';
 import { shuffle } from '../utils/shuffle.js';
 import { LEARNED_CONDITION_SQL } from '../db/learned.js';
+import { notifyLevelUp } from '../telegram/bot.js';
 
 export const cardsRouter = Router();
 
@@ -277,6 +278,8 @@ cardsRouter.post('/:id/review', (req, res) => {
     return { xpGained, leveledUp, totalXp: newTotalXp, currentLevel: newLevel };
   })();
 
+  if (result.leveledUp) notifyLevelUp(result.currentLevel);
+
   res.json({
     card_id: Number(id),
     ...next,
@@ -304,8 +307,10 @@ cardsRouter.post('/:id/master', (req, res) => {
     db.prepare('UPDATE user_stats SET total_xp = ?, current_level = ? WHERE id = 1').run(newTotalXp, newLevel);
     db.prepare('INSERT INTO xp_events (amount) VALUES (?)').run(MASTER_XP);
 
-    return { leveledUp };
+    return { leveledUp, currentLevel: newLevel };
   })();
+
+  if (result.leveledUp) notifyLevelUp(result.currentLevel);
 
   res.json({ xp_gained: MASTER_XP, leveled_up: result.leveledUp });
 });

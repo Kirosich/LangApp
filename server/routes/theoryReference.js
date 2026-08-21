@@ -2,6 +2,7 @@ import { Router } from 'express';
 import { db } from '../db/index.js';
 import { calculateLevel } from '../xp/calculate.js';
 import { LEARNED_CONDITION_SQL } from '../db/learned.js';
+import { notifyLevelUp } from '../telegram/bot.js';
 
 export const theoryReferenceRouter = Router();
 
@@ -132,8 +133,10 @@ theoryReferenceRouter.post('/:slug/read', (req, res) => {
     db.prepare('UPDATE user_stats SET total_xp = ?, current_level = ? WHERE id = 1').run(newTotalXp, newLevel);
     db.prepare('INSERT INTO xp_events (amount) VALUES (?)').run(READ_XP_BONUS);
 
-    return { xp_gained: READ_XP_BONUS, leveled_up: leveledUp };
+    return { xp_gained: READ_XP_BONUS, leveled_up: leveledUp, current_level: newLevel };
   })();
+
+  if (result.leveled_up) notifyLevelUp(result.current_level);
 
   res.json(result);
 });

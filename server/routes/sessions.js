@@ -2,6 +2,7 @@ import { Router } from 'express';
 import { db } from '../db/index.js';
 import { onSessionEnd } from '../gamification/onSessionEnd.js';
 import { BADGE_DEFINITIONS } from '../gamification/badgeDefinitions.js';
+import { notifyBadges } from '../telegram/bot.js';
 
 export const sessionsRouter = Router();
 
@@ -35,6 +36,8 @@ sessionsRouter.post('/:id/end', (req, res) => {
 
   const newlyEarnedCodes = updateAndCheck();
   if (newlyEarnedCodes === null) return res.status(404).json({ error: 'Session not found' });
+
+  notifyBadges(newlyEarnedCodes);
 
   const newlyEarnedBadges = newlyEarnedCodes.map((code) => BADGE_DEFINITIONS.find((b) => b.code === code));
   res.json({ newly_earned_badges: newlyEarnedBadges });
