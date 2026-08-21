@@ -1,5 +1,6 @@
 import { NavLink, Outlet } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
+import { useOnlineStatus } from '../hooks/useOnlineStatus';
 
 const NAV_ITEMS = [
   { to: '/', label: 'Дашборд', icon: '🏠', end: true },
@@ -18,6 +19,7 @@ function navLinkClass({ isActive }) {
 
 export default function Layout() {
   const { logout } = useAuth();
+  const online = useOnlineStatus();
 
   return (
     <div className="h-dvh flex flex-col bg-neutral-950 text-neutral-100 overflow-hidden">
@@ -27,6 +29,12 @@ export default function Layout() {
           Выйти
         </button>
       </header>
+
+      {!online && (
+        <div className="shrink-0 bg-amber-500/15 text-amber-400 text-xs text-center py-1.5 px-4">
+          Нет сети — показываю то, что сохранено на устройстве
+        </div>
+      )}
 
       <main className="flex-1 overflow-y-auto overscroll-contain">
         <Outlet />
