@@ -6,6 +6,7 @@ import { introduceDailyBacklog } from '../backlog/introduce.js';
 import { shuffle } from '../utils/shuffle.js';
 import { LEARNED_CONDITION_SQL } from '../db/learned.js';
 import { notifyLevelUp } from '../telegram/bot.js';
+import { LEECH_EF_THRESHOLD } from './gamification.js';
 
 export const cardsRouter = Router();
 
@@ -83,6 +84,48 @@ cardsRouter.get('/due', (req, res) => {
   // Shuffle so newly-introduced cards blend into the regular review queue
   // instead of forming a separate block.
   res.json(shuffle(rows).map(cardWithProgress));
+});
+
+// "Тренировка дня" (Stage 12): one button that assembles a balanced
+// session from whatever's weakest right now -- leeches (struggling
+// cards, regardless of whether they happen to be due yet) first, then
+// today's regular due queue, deduplicated. Reuses the exact leech
+// definition from the problem-cards endpoint (same threshold constant)
+// instead of inventing a second one.
+cardsRouter.get('/workout', (req, res) => {
+  const { language } = req.query;
+  const count = Math.min(Math.max(parseInt(req.query.limit, 10) || 20, 5), 50);
+  const today = new Date().toISOString().slice(0, 10);
+
+  const langClause = language ? 'AND c.language = ?' : '';
+  const langParams = language ? [language] : [];
+
+  const leeches = db
+    .prepare(
+      `SELECT c.id FROM cards c JOIN progress p ON p.card_id = c.id
+       WHERE p.last_reviewed IS NOT NULL AND c.mastered_at IS NULL AND p.easiness_factor <= ${LEECH_EF_THRESHOLD} ${langClause}
+       ORDER BY p.easiness_factor ASC`
+    )
+    .all(...langParams);
+
+  const due = db
+    .prepare(
+      `SELECT c.id FROM cards c JOIN progress p ON p.card_id = c.id
+       WHERE p.due_date <= ? AND c.mastered_at IS NULL ${langClause}
+       ORDER BY p.due_date ASC`
+    )
+    .all(today, ...langParams);
+
+  const seen = new Set();
+  const ids = [];
+  for (const row of [...leeches, ...due]) {
+    if (seen.has(row.id)) continue;
+    seen.add(row.id);
+    ids.push(row.id);
+    if (ids.length >= count) break;
+  }
+
+  res.json({ card_ids: ids });
 });
 
 cardsRouter.get('/known', (req, res) => {
@@ -319,5 +362,23 @@ cardsRouter.post('/:id/unmaster', (req, res) => {
   const { id } = req.params;
   const info = db.prepare(`UPDATE cards SET mastered_at = NULL WHERE id = ?`).run(id);
   if (info.changes === 0) return res.status(404).json({ error: 'Card not found' });
+  res.status(204).end();
+});
+
+// A real action for a leech card (Stage 12): give up on the current SRS
+// state and send it back to the backlog, where it'll be reintroduced
+// fresh via the normal dosed daily intro rather than kept circling at a
+// rock-bottom easiness factor.
+cardsRouter.post('/:id/demote', (req, res) => {
+  const { id } = req.params;
+  const card = db.prepare('SELECT * FROM cards WHERE id = ?').get(id);
+  if (!card) return res.status(404).json({ error: 'Card not found' });
+  if (card.status === 'backlog') return res.status(400).json({ error: 'Card is already in the backlog' });
+
+  db.transaction(() => {
+    db.prepare(`UPDATE cards SET status = 'backlog', activated_at = NULL WHERE id = ?`).run(id);
+    db.prepare('DELETE FROM progress WHERE card_id = ?').run(id);
+  })();
+
   res.status(204).end();
 });

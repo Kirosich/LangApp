@@ -65,6 +65,7 @@ function withQuery(path, params = {}) {
 export const api = {
   getStats: (params = {}) => apiFetch(withQuery('/api/stats', params)),
   getDueCards: (params = {}) => apiFetch(withQuery('/api/cards/due', params)),
+  getWorkout: (params = {}) => apiFetch(withQuery('/api/cards/workout', params)),
   getCards: (params = {}) => apiFetch(withQuery('/api/cards', params)),
   createCard: (card) => apiFetch('/api/cards', { method: 'POST', body: JSON.stringify(card) }),
   updateCard: (id, card) => apiFetch(`/api/cards/${id}`, { method: 'PUT', body: JSON.stringify(card) }),
@@ -114,6 +115,7 @@ export const api = {
   getKnownCards: (language) => apiFetch(withQuery('/api/cards/known', { language })),
   masterCard: (id) => apiFetch(`/api/cards/${id}/master`, { method: 'POST' }),
   unmasterCard: (id) => apiFetch(`/api/cards/${id}/unmaster`, { method: 'POST' }),
+  demoteCard: (id) => apiFetch(`/api/cards/${id}/demote`, { method: 'POST' }),
   getBacklogSummary: () => apiFetch('/api/backlog/summary'),
   getBacklogSettings: () => apiFetch('/api/backlog/settings'),
   updateBacklogSettings: (language, newCardsPerDay) =>

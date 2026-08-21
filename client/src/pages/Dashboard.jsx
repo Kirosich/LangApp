@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react';
-import { Link } from 'react-router-dom';
+import { Link, useNavigate } from 'react-router-dom';
 import { api } from '../api/client';
 import LevelCard from '../components/progress/LevelCard';
 import Heatmap from '../components/progress/Heatmap';
@@ -28,9 +28,27 @@ function formatMinutes(totalMinutes) {
 }
 
 export default function Dashboard() {
+  const navigate = useNavigate();
   const [stats, setStats] = useState(null);
   const [error, setError] = useState('');
   const [language, setLanguage] = useState('');
+  const [startingWorkout, setStartingWorkout] = useState(false);
+
+  async function startWorkout() {
+    setStartingWorkout(true);
+    try {
+      const { card_ids } = await api.getWorkout({ language });
+      if (card_ids.length === 0) {
+        setError('Пока нечего тренировать — ни просевших, ни карточек к повторению.');
+        return;
+      }
+      navigate(`/study?cards=${card_ids.join(',')}`);
+    } catch (e) {
+      setError(e.message);
+    } finally {
+      setStartingWorkout(false);
+    }
+  }
 
   const [summary, setSummary] = useState(null);
   const [heatmap, setHeatmap] = useState(null);
@@ -94,6 +112,14 @@ export default function Dashboard() {
           </button>
         ))}
       </div>
+
+      <button
+        onClick={startWorkout}
+        disabled={startingWorkout}
+        className="w-full rounded-xl bg-gradient-to-r from-indigo-600 to-violet-600 hover:from-indigo-500 hover:to-violet-500 disabled:opacity-50 py-4 font-semibold text-center"
+      >
+        {startingWorkout ? 'Собираю…' : '🎯 Тренировка дня'}
+      </button>
 
       <WeeklyRecap recap={weeklyRecap} />
 
@@ -206,7 +232,7 @@ export default function Dashboard() {
 
         <div>
           <h3 className="text-xs text-neutral-500 mb-2">Проблемные карточки</h3>
-          <ProblemCards cards={problemCards} />
+          <ProblemCards cards={problemCards} onChange={() => api.getProblemCards().then(setProblemCards).catch(() => {})} />
         </div>
       </div>
     </div>

@@ -80,13 +80,21 @@ gamificationRouter.get('/listening-accuracy-trend', (req, res) => {
   res.json(accuracyTrendFor(['quiz_listening']));
 });
 
+// "Leeches" in the Anki sense: cards that keep getting forgotten. There's
+// no per-review history table (review_log was dropped), so easiness_factor
+// itself is the signal -- it only drops on a forgotten review (quality < 3,
+// srs/sm2.js), floor 1.3. A meaningfully depressed EF after at least one
+// real review is as close to "repeat offender" as the current schema can
+// tell without adding a parallel lapse-count log.
+export const LEECH_EF_THRESHOLD = 2.0;
+
 gamificationRouter.get('/problem-cards', (req, res) => {
   const rows = db
     .prepare(
       `SELECT c.*, p.easiness_factor, p.interval_days, p.repetitions, p.due_date, p.last_reviewed
        FROM cards c
        JOIN progress p ON p.card_id = c.id
-       WHERE p.last_reviewed IS NOT NULL AND c.mastered_at IS NULL
+       WHERE p.last_reviewed IS NOT NULL AND c.mastered_at IS NULL AND p.easiness_factor <= ${LEECH_EF_THRESHOLD}
        ORDER BY p.easiness_factor ASC
        LIMIT 5`
     )
