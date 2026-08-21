@@ -45,7 +45,13 @@ gamificationRouter.get('/badges', (req, res) => {
   );
 });
 
-gamificationRouter.get('/accuracy-trend', (req, res) => {
+// Shared by both accuracy-trend endpoints below -- callers pass which
+// session_types to fold into the weekly average. Kept as two separate
+// routes/charts rather than one merged one: reading/typing/matching a
+// word and *hearing* it are different skills, so their accuracy numbers
+// stay on separate lines instead of diluting each other.
+function accuracyTrendFor(sessionTypes) {
+  const placeholders = sessionTypes.map(() => '?').join(',');
   const rows = db
     .prepare(
       `SELECT strftime('%Y-%W', started_at) AS week,
@@ -53,19 +59,25 @@ gamificationRouter.get('/accuracy-trend', (req, res) => {
               SUM(correct_count) AS correct,
               SUM(cards_reviewed) AS total
        FROM study_sessions
-       WHERE ended_at IS NOT NULL AND correct_count IS NOT NULL AND session_type IN ('quiz_choice', 'quiz_typing', 'quiz_matching', 'quiz_sentence')
+       WHERE ended_at IS NOT NULL AND correct_count IS NOT NULL AND session_type IN (${placeholders})
        GROUP BY week
        ORDER BY week ASC`
     )
-    .all();
+    .all(...sessionTypes);
 
-  res.json(
-    rows.map((r) => ({
-      week_start: r.week_start,
-      accuracy_percent: r.total > 0 ? Math.round((r.correct / r.total) * 100) : 0,
-      total_questions: r.total
-    }))
-  );
+  return rows.map((r) => ({
+    week_start: r.week_start,
+    accuracy_percent: r.total > 0 ? Math.round((r.correct / r.total) * 100) : 0,
+    total_questions: r.total
+  }));
+}
+
+gamificationRouter.get('/accuracy-trend', (req, res) => {
+  res.json(accuracyTrendFor(['quiz_choice', 'quiz_typing', 'quiz_matching', 'quiz_sentence']));
+});
+
+gamificationRouter.get('/listening-accuracy-trend', (req, res) => {
+  res.json(accuracyTrendFor(['quiz_listening']));
 });
 
 gamificationRouter.get('/problem-cards', (req, res) => {

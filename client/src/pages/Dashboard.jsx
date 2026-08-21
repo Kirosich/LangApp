@@ -37,6 +37,7 @@ export default function Dashboard() {
   const [topics, setTopics] = useState(null);
   const [badges, setBadges] = useState(null);
   const [accuracy, setAccuracy] = useState(null);
+  const [listeningAccuracy, setListeningAccuracy] = useState(null);
   const [problemCards, setProblemCards] = useState(null);
   const [milestones, setMilestones] = useState(null);
   const [weeklyRecap, setWeeklyRecap] = useState(null);
@@ -62,6 +63,7 @@ export default function Dashboard() {
     api.getTopicsBreakdown().then(setTopics).catch(() => {});
     api.getBadges().then(setBadges).catch(() => {});
     api.getAccuracyTrend().then(setAccuracy).catch(() => {});
+    api.getListeningAccuracyTrend().then(setListeningAccuracy).catch(() => {});
     api.getProblemCards().then(setProblemCards).catch(() => {});
     api.getMilestones().then(setMilestones).catch(() => {});
     api.getWeeklyRecap().then(setWeeklyRecap).catch(() => {});
@@ -183,6 +185,15 @@ export default function Dashboard() {
         <div>
           <h3 className="text-xs text-neutral-500 mb-2">Точность в квизах по неделям</h3>
           {accuracy ? <AccuracyChart data={accuracy} /> : <p className="text-sm text-neutral-500">Загрузка…</p>}
+        </div>
+
+        <div>
+          <h3 className="text-xs text-neutral-500 mb-2">Точность аудирования по неделям</h3>
+          {listeningAccuracy ? (
+            <AccuracyChart data={listeningAccuracy} />
+          ) : (
+            <p className="text-sm text-neutral-500">Загрузка…</p>
+          )}
         </div>
 
         <div>

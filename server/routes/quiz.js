@@ -4,7 +4,7 @@ import { shuffle } from '../utils/shuffle.js';
 
 export const quizRouter = Router();
 
-const VALID_TYPES = new Set(['choice', 'typing', 'matching', 'sentence']);
+const VALID_TYPES = new Set(['choice', 'typing', 'matching', 'sentence', 'listening']);
 
 function buildFilterClause(theme, language, alias = 'c') {
   const conditions = [];
@@ -150,7 +150,10 @@ quizRouter.get('/', (req, res) => {
     return res.json({ type, questions: [] });
   }
 
-  if (type === 'choice') {
+  if (type === 'choice' || type === 'listening') {
+    // Listening reuses the exact same question shape as choice (term +
+    // translation options) -- the only difference is client-side: the
+    // term is spoken via TTS instead of shown as text until answered.
     return res.json({ type, questions: buildChoiceQuestions(cards) });
   }
   if (type === 'typing') {

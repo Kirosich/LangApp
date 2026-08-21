@@ -6,7 +6,15 @@ import { notifyBadges } from '../telegram/bot.js';
 
 export const sessionsRouter = Router();
 
-const VALID_SESSION_TYPES = new Set(['study', 'quiz_choice', 'quiz_typing', 'quiz_matching', 'quiz_sentence', 'theory_drill']);
+const VALID_SESSION_TYPES = new Set([
+  'study',
+  'quiz_choice',
+  'quiz_typing',
+  'quiz_matching',
+  'quiz_sentence',
+  'theory_drill',
+  'quiz_listening'
+]);
 
 sessionsRouter.post('/start', (req, res) => {
   const { session_type } = req.body;

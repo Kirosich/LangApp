@@ -193,6 +193,27 @@ function ensureSessionTypeAllowsTheoryDrill(db) {
   `);
 }
 
+function ensureSessionTypeAllowsListening(db) {
+  const row = db.prepare(`SELECT sql FROM sqlite_master WHERE type = 'table' AND name = 'study_sessions'`).get();
+  if (!row || row.sql.includes('quiz_listening')) return;
+
+  db.exec(`
+    ALTER TABLE study_sessions RENAME TO study_sessions_old;
+    CREATE TABLE study_sessions (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      session_type TEXT NOT NULL CHECK (session_type IN ('study', 'quiz_choice', 'quiz_typing', 'quiz_matching', 'quiz_sentence', 'theory_drill', 'quiz_listening')),
+      started_at TEXT NOT NULL DEFAULT (datetime('now')),
+      ended_at TEXT,
+      cards_reviewed INTEGER NOT NULL DEFAULT 0,
+      correct_count INTEGER
+    );
+    INSERT INTO study_sessions (id, session_type, started_at, ended_at, cards_reviewed, correct_count)
+      SELECT id, session_type, started_at, ended_at, cards_reviewed, correct_count FROM study_sessions_old;
+    DROP TABLE study_sessions_old;
+    CREATE INDEX IF NOT EXISTS idx_sessions_started_at ON study_sessions(started_at);
+  `);
+}
+
 export function runMigrations(db) {
   db.pragma('foreign_keys = ON');
   const migrate = db.transaction(() => {
@@ -202,6 +223,7 @@ export function runMigrations(db) {
     addColumnIfMissing(db, 'study_sessions', 'correct_count', 'INTEGER');
     ensureSessionTypeAllowsSentence(db);
     ensureSessionTypeAllowsTheoryDrill(db);
+    ensureSessionTypeAllowsListening(db);
     addColumnIfMissing(db, 'cards', 'status', "TEXT NOT NULL DEFAULT 'active'");
     addColumnIfMissing(db, 'cards', 'activated_at', 'TEXT');
     addColumnIfMissing(db, 'cards', 'mastered_at', 'TEXT');

@@ -10,10 +10,14 @@
 **Карточки и повторение**
 - SRS по SM-2 (`server/srs/sm2.js`) — интервалы, коэффициент лёгкости,
   дата следующего повторения
-- Четыре типа квиза: multiple choice, typing (толерантность к опечаткам,
+- Пять типов квиза: multiple choice, typing (толерантность к опечаткам,
   Левенштейн ≤1), matching pairs, «Собери предложение» (тапом по словам
   восстановить `example_sentence` карточки; только active/mastered,
-  не backlog; пунктуация приклеена к словам, не отдельные фишки)
+  не backlog; пунктуация приклеена к словам, не отдельные фишки),
+  «Аудирование» (термин озвучивается через TTS вместо показа текста;
+  вопросы для языка без голоса на устройстве отфильтровываются сами —
+  без битых беззвучных карточек; своя строка точности, отдельно от
+  остальных квизов)
 - «Тренировка» — свободный прогон карточек (флип-карты без оценок) без
   влияния на SRS-расписание: либо как бонус-раунд после обычной сессии
   повторения, либо отдельным входом с дашборда на заданное число слов
@@ -244,7 +248,7 @@ Secrets and variables → Actions**:
 | DELETE | `/api/cards/:id` | удалить карточку |
 | POST | `/api/cards/:id/review` | отправить оценку (0–5), обновить SM-2, начислить XP |
 | POST | `/api/cards/:id/master` / `/unmaster` | пометить как «уже знаю» / вернуть в оборот |
-| GET | `/api/quiz?type=choice\|typing\|matching\|sentence&theme=&language=&count=` | сгенерировать квиз |
+| GET | `/api/quiz?type=choice\|typing\|matching\|sentence\|listening&theme=&language=&count=` | сгенерировать квиз |
 | GET | `/api/stats?language=` | всего карточек, к повторению, streak, по темам |
 | POST | `/api/sessions/start` / `POST /api/sessions/:id/end` | трекинг длительности сессии study/quiz |
 | GET/POST/PUT/DELETE | `/api/theory/courses`, `/blocks`, `/items` | курсы теории → блоки → пункты-чеклист |
@@ -252,7 +256,7 @@ Secrets and variables → Actions**:
 | POST | `/api/theory/:slug/read` | отметить тему прочитанной, начислить XP |
 | GET | `/api/theory/theme-links?language=` | связки тема карточек ↔ slug темы справочника |
 | GET | `/api/theory/:slug/drills` | грамматические дриллы темы (multiple choice) |
-| GET | `/api/gamification/summary` \| `/badges` \| `/heatmap` \| `/cumulative` \| `/topics-breakdown` \| `/accuracy-trend` \| `/problem-cards` \| `/milestones` \| `/weekly-recap` | статистика и геймификация для дашборда |
+| GET | `/api/gamification/summary` \| `/badges` \| `/heatmap` \| `/cumulative` \| `/topics-breakdown` \| `/accuracy-trend` \| `/listening-accuracy-trend` \| `/problem-cards` \| `/milestones` \| `/weekly-recap` | статистика и геймификация для дашборда |
 | GET | `/api/backlog/summary` \| `/settings` | состояние и настройки склада новых карточек |
 | PUT | `/api/backlog/settings` | темп ввода новых карточек в день |
 | POST | `/api/backlog/boost` | разово ввести N карточек из склада сверх нормы |
@@ -337,3 +341,13 @@ Secrets and variables → Actions**:
   Новый `session_type = theory_drill` (снова потребовал пересоздания
   `study_sessions`); точность дриллов намеренно не подмешивается в общий
   график точности квизов — грамматика и лексика разные навыки.
+- **2026-08-21** — аудирование (Этап 9 второй очереди): новый тип квиза
+  «Аудирование» поверх Web Speech API из Этапа 4 — термин озвучивается,
+  текст скрыт до ответа. Переиспользует ту же выборку/генерацию вопросов,
+  что и multiple choice (не дублировал расчёты) — разница чисто на
+  клиенте. Вопросы для языка без TTS-голоса на устройстве отфильтровываются
+  автоматически; если голоса нет вообще — понятное сообщение вместо
+  немой викторины. Новый `session_type = quiz_listening`; точность —
+  отдельный график `/api/gamification/listening-accuracy-trend`,
+  специально не смешан с точностью остальных квизов (слышать и видеть
+  слово — разные навыки).

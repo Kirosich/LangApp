@@ -98,6 +98,7 @@ export const api = {
   getTopicsBreakdown: () => apiFetch('/api/gamification/topics-breakdown'),
   getBadges: () => apiFetch('/api/gamification/badges'),
   getAccuracyTrend: () => apiFetch('/api/gamification/accuracy-trend'),
+  getListeningAccuracyTrend: () => apiFetch('/api/gamification/listening-accuracy-trend'),
   getProblemCards: () => apiFetch('/api/gamification/problem-cards'),
   getMilestones: () => apiFetch('/api/gamification/milestones'),
   getWeeklyRecap: () => apiFetch('/api/gamification/weekly-recap'),

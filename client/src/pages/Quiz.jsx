@@ -5,20 +5,23 @@ import ChoiceQuiz from '../components/quiz/ChoiceQuiz';
 import TypingQuiz from '../components/quiz/TypingQuiz';
 import MatchingQuiz from '../components/quiz/MatchingQuiz';
 import SentenceQuiz from '../components/quiz/SentenceQuiz';
+import ListeningQuiz from '../components/quiz/ListeningQuiz';
 import { celebrateBadge } from '../utils/confetti';
 
 const TYPE_OPTIONS = [
   { value: 'choice', label: 'Выбор варианта' },
   { value: 'typing', label: 'Ввод с клавиатуры' },
   { value: 'matching', label: 'Сопоставление пар' },
-  { value: 'sentence', label: 'Собери предложение' }
+  { value: 'sentence', label: 'Собери предложение' },
+  { value: 'listening', label: 'Аудирование (на слух)' }
 ];
 
 const SESSION_TYPE_FOR_QUIZ = {
   choice: 'quiz_choice',
   typing: 'quiz_typing',
   matching: 'quiz_matching',
-  sentence: 'quiz_sentence'
+  sentence: 'quiz_sentence',
+  listening: 'quiz_listening'
 };
 
 export default function Quiz() {
@@ -89,11 +92,11 @@ export default function Quiz() {
     if (isCorrect) correctCountRef.current += 1;
   }
 
-  function finish(score) {
+  function finish(score, total) {
     endActiveSession()?.then((result) => {
       if (result?.newly_earned_badges?.length) celebrateBadge();
     });
-    setResult(score);
+    setResult({ score, total });
     setStage('result');
   }
 
@@ -104,12 +107,12 @@ export default function Quiz() {
   }
 
   if (stage === 'result') {
-    const total = quizData.type === 'matching' ? quizData.rounds.flat().length : quizData.questions.length;
+    const total = result.total ?? (quizData.type === 'matching' ? quizData.rounds.flat().length : quizData.questions.length);
     return (
       <div className="p-4 max-w-lg mx-auto text-center flex flex-col items-center gap-3 mt-16">
         <div className="text-2xl font-semibold">Результат</div>
         <div className="text-4xl font-bold text-indigo-400">
-          {result} / {total}
+          {result.score} / {total}
         </div>
         <div className="flex gap-2 mt-4">
           <button onClick={restart} className="rounded-lg bg-neutral-800 hover:bg-neutral-700 px-4 py-2 text-sm">
@@ -149,6 +152,13 @@ export default function Quiz() {
       return (
         <div className="p-4 max-w-lg mx-auto">
           <SentenceQuiz questions={quizData.questions} onFinish={finish} onProgress={progress} />
+        </div>
+      );
+    }
+    if (quizData.type === 'listening' && quizData.questions.length > 0) {
+      return (
+        <div className="p-4 max-w-lg mx-auto">
+          <ListeningQuiz questions={quizData.questions} onFinish={finish} onProgress={progress} />
         </div>
       );
     }
