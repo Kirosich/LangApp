@@ -17,6 +17,7 @@
     "seed:theory-drills": "node seed-theory-drills.js",
     "seed:dialogues": "node seed-dialogues.js",
     "migrate:vocab-to-backlog": "node migrate-vocab-to-backlog.js",
+    "migrate:sm2-to-fsrs": "node migrate-sm2-to-fsrs.js",
     "test": "vitest run"
   },
   "dependencies": {
