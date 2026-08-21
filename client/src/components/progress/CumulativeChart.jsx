@@ -15,6 +15,7 @@ export default function CumulativeChart({ data }) {
           <Tooltip
             contentStyle={{ background: '#171717', border: '1px solid #3f3f46', borderRadius: 8, fontSize: 12 }}
             labelStyle={{ color: '#e5e5e5' }}
+            formatter={(value) => [value, 'Слов выучено']}
           />
           <Line type="monotone" dataKey="total_words_learned" stroke="#818cf8" strokeWidth={2} dot={false} />
         </LineChart>
