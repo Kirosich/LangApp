@@ -14,24 +14,35 @@ function loadVoices() {
   voicesPromise = new Promise((resolve) => {
     if (!isSupported()) return resolve([]);
 
-    const existing = window.speechSynthesis.getVoices();
-    if (existing.length > 0) return resolve(existing);
-
-    // Voices frequently load asynchronously (especially on mobile Safari
-    // and Chrome) -- the first getVoices() call right after page load
-    // often returns an empty list.
-    function onVoicesChanged() {
+    let settled = false;
+    function finish() {
+      if (settled) return;
+      settled = true;
+      window.speechSynthesis.removeEventListener('voiceschanged', onVoicesChanged);
       const voices = window.speechSynthesis.getVoices();
-      if (voices.length > 0) {
-        window.speechSynthesis.removeEventListener('voiceschanged', onVoicesChanged);
-        resolve(voices);
+      if (import.meta.env.DEV || window.__langappTtsDebug) {
+        const kzVoices = voices.filter((v) => v.lang.toLowerCase().startsWith('kk'));
+        // eslint-disable-next-line no-console
+        console.info(
+          `[tts] resolved ${voices.length} voice(s); kk-matching: ${kzVoices.length ? kzVoices.map((v) => `${v.name} (${v.lang})`).join(', ') : 'none'}`
+        );
       }
+      resolve(voices);
+    }
+    function onVoicesChanged() {
+      finish();
     }
     window.speechSynthesis.addEventListener('voiceschanged', onVoicesChanged);
 
-    // Some browsers never fire voiceschanged if the list stays empty --
-    // don't leave callers waiting forever.
-    setTimeout(() => resolve(window.speechSynthesis.getVoices()), 1500);
+    // Some browsers return a small "default" batch of voices synchronously,
+    // with the rest of the list -- including less common languages like
+    // kk-KZ -- arriving later via voiceschanged. Trusting a non-empty
+    // snapshot immediately can permanently miss those, since this promise
+    // is cached and only resolved once. Give the async batch a short grace
+    // window when something's already loaded, or the full fallback window
+    // when starting from empty, then settle for whatever's loaded by then.
+    const graceMs = window.speechSynthesis.getVoices().length > 0 ? 300 : 1500;
+    setTimeout(finish, graceMs);
   });
 
   return voicesPromise;
