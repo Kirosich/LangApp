@@ -66,7 +66,8 @@ export default function ProficiencyTestList() {
                 )}
               </div>
               <div className="text-xs text-neutral-500 mb-3">
-                словарь: {def.vocab_pool_size} слов · грамматика: {def.grammar_pool_size} вопросов
+                словарь: {def.vocab_pool_size} слов · грамматика: {def.grammar_pool_size} вопросов · аудирование: {def.listening_pool_size}{' '}
+                вопросов
                 {def.vocab_pool_size < 10 && def.vocab_pool_size > 0 && ' (маловато для точной картины)'}
               </div>
               {noPool ? (

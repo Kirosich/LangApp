@@ -579,6 +579,31 @@ export function runMigrations(db) {
       CREATE INDEX IF NOT EXISTS idx_proficiency_test_sections_test ON proficiency_test_sections(test_id);
     `);
     ensureSessionTypeAllowsProficiencyTest(db);
+
+    // Listening section (Этап B): short original passages for the
+    // "listen to a passage, answer questions" sub-type, and word pairs
+    // for the "which did you hear" minimal-pairs sub-type. Both original
+    // content, never copied.
+    db.exec(`
+      CREATE TABLE IF NOT EXISTS proficiency_listening_texts (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        language TEXT NOT NULL CHECK (language IN ('kz', 'en')),
+        level TEXT NOT NULL,
+        body TEXT NOT NULL,
+        comprehension_questions TEXT NOT NULL,
+        created_at TEXT NOT NULL DEFAULT (datetime('now'))
+      );
+      CREATE TABLE IF NOT EXISTS proficiency_minimal_pairs (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        language TEXT NOT NULL CHECK (language IN ('kz', 'en')),
+        word_a TEXT NOT NULL,
+        word_b TEXT NOT NULL,
+        contrast_label TEXT NOT NULL,
+        created_at TEXT NOT NULL DEFAULT (datetime('now'))
+      );
+      CREATE INDEX IF NOT EXISTS idx_proficiency_listening_texts_lang_level ON proficiency_listening_texts(language, level);
+      CREATE INDEX IF NOT EXISTS idx_proficiency_minimal_pairs_language ON proficiency_minimal_pairs(language);
+    `);
   });
   migrate();
 }

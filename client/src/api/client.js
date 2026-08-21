@@ -147,7 +147,12 @@ export const api = {
   getProficiencyGrammarQuestions: (id) => apiFetch(`/api/proficiency-tests/${id}/sections/grammar/questions`),
   submitProficiencyGrammar: (id, answers) =>
     apiFetch(`/api/proficiency-tests/${id}/sections/grammar`, { method: 'POST', body: JSON.stringify({ answers }) }),
-  completeProficiencyTest: (id) => apiFetch(`/api/proficiency-tests/${id}/complete`, { method: 'POST' })
+  completeProficiencyTest: (id) => apiFetch(`/api/proficiency-tests/${id}/complete`, { method: 'POST' }),
+  getProficiencyListeningQuestions: (id) => apiFetch(`/api/proficiency-tests/${id}/sections/listening/questions`),
+  submitProficiencyListening: (id, answers) =>
+    apiFetch(`/api/proficiency-tests/${id}/sections/listening`, { method: 'POST', body: JSON.stringify({ answers }) }),
+  skipProficiencyListening: (id, reason) =>
+    apiFetch(`/api/proficiency-tests/${id}/sections/listening/skip`, { method: 'POST', body: JSON.stringify({ reason }) })
 };
 
 export function endSessionOnUnload(id, cardsReviewed, correctCount = null) {

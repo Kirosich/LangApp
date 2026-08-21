@@ -2,10 +2,12 @@ import { useEffect, useState } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
 import { api } from '../api/client';
 import { useStudySession } from '../hooks/useStudySession';
+import { useSpeech } from '../hooks/useSpeech';
+import { findVoice } from '../utils/tts';
 import { celebrateBadge } from '../utils/confetti';
 
-const SECTION_ORDER = ['vocabulary', 'grammar'];
-const SECTION_LABEL = { vocabulary: 'Словарь', grammar: 'Грамматика' };
+const SECTION_ORDER = ['vocabulary', 'grammar', 'listening'];
+const SECTION_LABEL = { vocabulary: 'Словарь', grammar: 'Грамматика', listening: 'Аудирование' };
 const VERDICT_STYLE = {
   прочно: 'text-emerald-400',
   шатко: 'text-amber-400',
@@ -59,13 +61,37 @@ function ProficiencyTestBody({ test, onReload }) {
     setValue('');
     setAnswers([]);
 
-    const fetcher = nextSection === 'vocabulary' ? api.getProficiencyVocabQuestions : api.getProficiencyGrammarQuestions;
-    fetcher(test.id)
-      .then((data) => {
+    async function loadSection() {
+      // Feature-detect BEFORE fetching questions, not mid-section --
+      // mainly iOS, which has no Kazakh voice in any browser (see
+      // CLAUDE.md). Recorded as a real skipped section (not just a
+      // locally-skipped empty pool) so the summary explains why.
+      if (nextSection === 'listening') {
+        const voice = await findVoice(test.language);
+        if (!voice) {
+          await api.skipProficiencyListening(test.id, 'На этом устройстве нет голоса для этого языка');
+          onReload();
+          return;
+        }
+      }
+
+      const fetcher =
+        nextSection === 'vocabulary'
+          ? api.getProficiencyVocabQuestions
+          : nextSection === 'grammar'
+          ? api.getProficiencyGrammarQuestions
+          : api.getProficiencyListeningQuestions;
+
+      try {
+        const data = await fetcher(test.id);
         setQuestions(data.questions);
         setSectionState('active');
-      })
-      .catch(() => setSectionState('empty'));
+      } catch {
+        setSectionState('empty');
+      }
+    }
+
+    loadSection();
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [test.id, nextSection]);
 
@@ -106,6 +132,23 @@ function ProficiencyTestBody({ test, onReload }) {
 
     if (index + 1 >= questions.length) {
       await api.submitProficiencyGrammar(test.id, updated);
+      onReload();
+      return;
+    }
+    setIndex((i) => i + 1);
+  }
+
+  async function submitListeningAnswer(response) {
+    const q = questions[index];
+    const entry = { subtype: q.subtype, response };
+    if (q.subtype === 'choice' || q.subtype === 'dictation') entry.card_id = q.card_id;
+    else entry.ref = q.ref;
+    const updated = [...answers, entry];
+    setAnswers(updated);
+    setValue('');
+
+    if (index + 1 >= questions.length) {
+      await api.submitProficiencyListening(test.id, updated);
       onReload();
       return;
     }
@@ -161,8 +204,10 @@ function ProficiencyTestBody({ test, onReload }) {
 
       {nextSection === 'vocabulary' ? (
         <VocabQuestion question={question} value={value} setValue={setValue} onSubmit={submitVocabAnswer} />
-      ) : (
+      ) : nextSection === 'grammar' ? (
         <GrammarQuestion question={question} onSubmit={submitGrammarAnswer} />
+      ) : (
+        <ListeningQuestion language={test.language} question={question} value={value} setValue={setValue} onSubmit={submitListeningAnswer} />
       )}
     </div>
   );
@@ -234,6 +279,73 @@ function GrammarQuestion({ question, onSubmit }) {
   );
 }
 
+const LISTENING_SUBTYPE_PROMPT = {
+  choice: 'Что вы услышали? Выберите перевод.',
+  dictation: 'Напечатайте то, что услышали.',
+  minimal_pair: 'Какое слово вы услышали?'
+};
+
+function ListeningQuestion({ language, question, value, setValue, onSubmit }) {
+  const { speak } = useSpeech(language);
+
+  useEffect(() => {
+    if (question.speak) speak(question.speak);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [question]);
+
+  const replayText = question.speak;
+  const caption = question.prompt || LISTENING_SUBTYPE_PROMPT[question.subtype];
+
+  return (
+    <div className="flex flex-col gap-3">
+      <div className="rounded-xl border border-neutral-800 bg-neutral-900 p-4 text-center space-y-2">
+        {caption && <div className="text-sm text-neutral-300">{caption}</div>}
+        {replayText && (
+          <button
+            onClick={() => speak(replayText)}
+            className="inline-flex items-center gap-1.5 text-sm text-indigo-400 hover:text-indigo-300"
+          >
+            🔊 {question.subtype === 'text' ? 'Прослушать отрывок ещё раз' : 'Прослушать ещё раз'}
+          </button>
+        )}
+      </div>
+
+      {question.subtype === 'dictation' ? (
+        <form
+          onSubmit={(e) => {
+            e.preventDefault();
+            if (value.trim()) onSubmit(value.trim());
+          }}
+          className="flex flex-col gap-3"
+        >
+          <input
+            autoFocus
+            value={value}
+            onChange={(e) => setValue(e.target.value)}
+            placeholder="Ваш ответ…"
+            className="w-full rounded-xl border border-neutral-800 px-4 py-3 bg-neutral-900 focus:outline-none focus:ring-2 focus:ring-indigo-500"
+          />
+          <button type="submit" className="rounded-xl bg-indigo-600 hover:bg-indigo-500 py-3 font-medium">
+            Дальше
+          </button>
+        </form>
+      ) : (
+        <div className="grid grid-cols-1 gap-2">
+          {question.options.map((option) => (
+            <button
+              key={option}
+              onClick={() => onSubmit(option)}
+              className="rounded-xl border border-neutral-800 bg-neutral-900 hover:bg-neutral-800 px-4 py-3 text-left transition-colors"
+            >
+              {option}
+            </button>
+          ))}
+        </div>
+      )}
+    </div>
+  );
+}
+
 function TestSummary({ test, onExit }) {
   return (
     <div className="p-4 max-w-lg mx-auto space-y-4">
@@ -248,9 +360,12 @@ function TestSummary({ test, onExit }) {
 
       <div className="space-y-2">
         {test.sections.map((s) => (
-          <div key={s.section_type} className="flex items-center justify-between rounded-xl border border-neutral-800 bg-neutral-900 p-3">
-            <span className="text-sm">{SECTION_LABEL[s.section_type] || s.section_type}</span>
-            <span className="text-sm font-medium">{s.skipped ? 'пропущено' : `${s.score_percent}%`}</span>
+          <div key={s.section_type} className="rounded-xl border border-neutral-800 bg-neutral-900 p-3">
+            <div className="flex items-center justify-between">
+              <span className="text-sm">{SECTION_LABEL[s.section_type] || s.section_type}</span>
+              <span className="text-sm font-medium">{s.skipped ? 'пропущено' : `${s.score_percent}%`}</span>
+            </div>
+            {s.skipped && s.skip_reason && <div className="text-xs text-neutral-500 mt-1">{s.skip_reason}</div>}
           </div>
         ))}
       </div>
