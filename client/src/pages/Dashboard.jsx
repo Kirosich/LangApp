@@ -156,37 +156,7 @@ export default function Dashboard() {
         <BacklogWidget summary={backlogSummary} onBoost={handleBoost} />
       </div>
 
-      {stats && (
-        <div>
-          <h2 className="text-sm text-neutral-400 mb-2">Время</h2>
-          <div className="space-y-3">
-            <div>
-              <div className="text-xs text-neutral-500 mb-1">Казахский</div>
-              <div className="grid grid-cols-3 gap-3">
-                <StatCard label="Сегодня" value={formatMinutes(stats.minutes_by_language.kz.today)} />
-                <StatCard label="За неделю" value={formatMinutes(stats.minutes_by_language.kz.this_week)} />
-                <StatCard label="Всего" value={formatMinutes(stats.minutes_by_language.kz.all_time)} />
-              </div>
-            </div>
-            <div>
-              <div className="text-xs text-neutral-500 mb-1">English</div>
-              <div className="grid grid-cols-3 gap-3">
-                <StatCard label="Сегодня" value={formatMinutes(stats.minutes_by_language.en.today)} />
-                <StatCard label="За неделю" value={formatMinutes(stats.minutes_by_language.en.this_week)} />
-                <StatCard label="Всего" value={formatMinutes(stats.minutes_by_language.en.all_time)} />
-              </div>
-            </div>
-            <div>
-              <div className="text-xs text-neutral-500 mb-1">Всего (включая смешанные сессии)</div>
-              <div className="grid grid-cols-3 gap-3">
-                <StatCard label="Сегодня" value={formatMinutes(stats.total_minutes_today)} />
-                <StatCard label="За неделю" value={formatMinutes(stats.total_minutes_this_week)} />
-                <StatCard label="Всего" value={formatMinutes(stats.total_minutes_all_time)} />
-              </div>
-            </div>
-          </div>
-        </div>
-      )}
+      {stats && <TimeTable stats={stats} />}
 
       {stats?.by_theme?.length > 0 && (
         <div>
@@ -256,6 +226,43 @@ export default function Dashboard() {
           <ProblemCards cards={problemCards} onChange={() => api.getProblemCards().then(setProblemCards).catch(() => {})} />
         </div>
       </div>
+    </div>
+  );
+}
+
+// One compact table instead of 9 separate StatCards -- rows are
+// languages (kz/en/combined), columns are periods, with a small header
+// row instead of a label per number.
+function TimeTable({ stats }) {
+  const rows = [
+    { label: 'Казахский', minutes: stats.minutes_by_language.kz },
+    { label: 'English', minutes: stats.minutes_by_language.en },
+    {
+      label: 'Всего*',
+      minutes: { today: stats.total_minutes_today, this_week: stats.total_minutes_this_week, all_time: stats.total_minutes_all_time }
+    }
+  ];
+
+  return (
+    <div>
+      <h2 className="text-sm text-neutral-400 mb-2">Время</h2>
+      <div className="rounded-xl border border-neutral-800 bg-neutral-900 overflow-hidden">
+        <div className="grid grid-cols-4 text-[11px] text-neutral-500 px-3 py-2 border-b border-neutral-800">
+          <span></span>
+          <span className="text-right">Сегодня</span>
+          <span className="text-right">Неделя</span>
+          <span className="text-right">Всего</span>
+        </div>
+        {rows.map((row) => (
+          <div key={row.label} className="grid grid-cols-4 text-sm px-3 py-2 border-b border-neutral-800 last:border-0">
+            <span className="text-neutral-300">{row.label}</span>
+            <span className="text-right">{formatMinutes(row.minutes.today)}</span>
+            <span className="text-right">{formatMinutes(row.minutes.this_week)}</span>
+            <span className="text-right">{formatMinutes(row.minutes.all_time)}</span>
+          </div>
+        ))}
+      </div>
+      <p className="text-[10px] text-neutral-600 mt-1">* включает сессии без выбранного языка</p>
     </div>
   );
 }
