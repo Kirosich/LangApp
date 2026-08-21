@@ -1,10 +1,12 @@
 import { useState } from 'react';
 import TheoryPlan from '../components/theory/TheoryPlan';
 import TheoryReferenceList from '../components/theory/TheoryReferenceList';
+import DialogueList from '../components/theory/DialogueList';
 
 const VIEWS = [
   { value: 'reference', label: 'Справочник' },
-  { value: 'plan', label: 'Мой план' }
+  { value: 'plan', label: 'Мой план' },
+  { value: 'dialogues', label: 'Диалоги' }
 ];
 
 export default function Theory() {
@@ -30,7 +32,9 @@ export default function Theory() {
         ))}
       </div>
 
-      {view === 'reference' ? <TheoryReferenceList /> : <TheoryPlan />}
+      {view === 'reference' && <TheoryReferenceList />}
+      {view === 'plan' && <TheoryPlan />}
+      {view === 'dialogues' && <DialogueList />}
     </div>
   );
 }

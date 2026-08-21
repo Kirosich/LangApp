@@ -138,7 +138,46 @@ const MIGRATIONS = [
     position INTEGER NOT NULL DEFAULT 0,
     created_at TEXT NOT NULL DEFAULT (datetime('now'))
   )`,
-  `CREATE INDEX IF NOT EXISTS idx_theory_drills_topic ON theory_drills(topic_id)`
+  `CREATE INDEX IF NOT EXISTS idx_theory_drills_topic ON theory_drills(topic_id)`,
+  // Scenario dialogues (Stage 10, wave 2): reference content, read like a
+  // theory topic (not a quiz -- no session_type needed). Content is
+  // built predominantly from vocabulary already present in `cards`;
+  // dialogue_new_words tracks the handful of words per dialogue that
+  // aren't in the deck yet, shown transparently in the UI rather than
+  // silently dumped into the dialogue.
+  `CREATE TABLE IF NOT EXISTS dialogues (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    language TEXT NOT NULL CHECK (language IN ('kz', 'en')),
+    slug TEXT NOT NULL UNIQUE,
+    title TEXT NOT NULL,
+    scenario TEXT NOT NULL,
+    level TEXT NOT NULL,
+    order_index INTEGER NOT NULL DEFAULT 0,
+    created_at TEXT NOT NULL DEFAULT (datetime('now'))
+  )`,
+  `CREATE TABLE IF NOT EXISTS dialogue_lines (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    dialogue_id INTEGER NOT NULL REFERENCES dialogues(id) ON DELETE CASCADE,
+    position INTEGER NOT NULL DEFAULT 0,
+    speaker TEXT NOT NULL,
+    text TEXT NOT NULL,
+    translation_ru TEXT NOT NULL
+  )`,
+  `CREATE TABLE IF NOT EXISTS dialogue_new_words (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    dialogue_id INTEGER NOT NULL REFERENCES dialogues(id) ON DELETE CASCADE,
+    term TEXT NOT NULL,
+    translation_ru TEXT NOT NULL,
+    position INTEGER NOT NULL DEFAULT 0
+  )`,
+  `CREATE TABLE IF NOT EXISTS dialogue_progress (
+    dialogue_id INTEGER PRIMARY KEY REFERENCES dialogues(id) ON DELETE CASCADE,
+    read_at TEXT,
+    read_count INTEGER NOT NULL DEFAULT 0
+  )`,
+  `CREATE INDEX IF NOT EXISTS idx_dialogues_language ON dialogues(language)`,
+  `CREATE INDEX IF NOT EXISTS idx_dialogue_lines_dialogue ON dialogue_lines(dialogue_id)`,
+  `CREATE INDEX IF NOT EXISTS idx_dialogue_new_words_dialogue ON dialogue_new_words(dialogue_id)`
 ];
 
 function addColumnIfMissing(db, table, column, definition) {
