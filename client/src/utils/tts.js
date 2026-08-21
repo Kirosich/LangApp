@@ -20,12 +20,22 @@ function loadVoices() {
       settled = true;
       window.speechSynthesis.removeEventListener('voiceschanged', onVoicesChanged);
       const voices = window.speechSynthesis.getVoices();
-      if (import.meta.env.DEV || window.__langappTtsDebug) {
+      const debugEnabled =
+        import.meta.env.DEV || window.__langappTtsDebug || new URLSearchParams(window.location.search).get('ttsdebug') === '1';
+      if (debugEnabled) {
         const kzVoices = voices.filter((v) => v.lang.toLowerCase().startsWith('kk'));
+        const summary = `[tts] resolved ${voices.length} voice(s); kk-matching: ${
+          kzVoices.length ? kzVoices.map((v) => `${v.name} (${v.lang})`).join(', ') : 'none'
+        }`;
         // eslint-disable-next-line no-console
-        console.info(
-          `[tts] resolved ${voices.length} voice(s); kk-matching: ${kzVoices.length ? kzVoices.map((v) => `${v.name} (${v.lang})`).join(', ') : 'none'}`
-        );
+        console.info(summary);
+        // On-screen fallback for devices without easy devtools access
+        // (e.g. iOS Safari) -- append ?ttsdebug=1 to any page URL.
+        const el = document.createElement('div');
+        el.textContent = summary;
+        el.style.cssText =
+          'position:fixed;bottom:0;left:0;right:0;z-index:99999;background:#000;color:#0f0;font:11px monospace;padding:8px;word-break:break-word;';
+        document.body.appendChild(el);
       }
       resolve(voices);
     }
