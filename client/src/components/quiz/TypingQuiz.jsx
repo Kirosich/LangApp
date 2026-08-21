@@ -1,6 +1,20 @@
 import { useState } from 'react';
 import { isCloseEnough } from '../../utils/levenshtein';
 
+// translation_ru often lists more than one accepted answer -- "вариант1 /
+// вариант2" or "вариант1, вариант2" (both conventions are already used
+// across the deck), sometimes with a parenthetical note that isn't part
+// of the answer itself, e.g. "идти, ехать (куда-то)" or "рубашка
+// (мужская)". Split on both separators and strip parentheticals so any
+// one of the real alternatives counts as correct.
+function acceptableAnswers(expected) {
+  return expected
+    .replace(/\([^)]*\)/g, '')
+    .split(/[,/]/)
+    .map((s) => s.trim())
+    .filter(Boolean);
+}
+
 export default function TypingQuiz({ questions, onFinish, onProgress }) {
   const [index, setIndex] = useState(0);
   const [value, setValue] = useState('');
@@ -13,7 +27,7 @@ export default function TypingQuiz({ questions, onFinish, onProgress }) {
   function submit(e) {
     e.preventDefault();
     if (checked || !value.trim()) return;
-    const correct = isCloseEnough(value, question.expected_answer, 1);
+    const correct = acceptableAnswers(question.expected_answer).some((alt) => isCloseEnough(value, alt, 1));
     setChecked(correct ? 'correct' : 'incorrect');
     if (correct) setScore((s) => s + 1);
     onProgress?.(correct);
