@@ -21,15 +21,19 @@ function buildFilterClause(theme, language, alias = 'c') {
 }
 
 function selectQuizCards({ theme, language, count }) {
-  const today = new Date().toISOString().slice(0, 10);
+  // fsrs_due NULL means "never reviewed since the FSRS switch (Stage D)"
+  // -- stays immediately reviewable, same as due_date used to default
+  // to today.
+  const now = new Date().toISOString();
   const { clause, params } = buildFilterClause(theme, language);
 
   const due = db
     .prepare(
       `SELECT c.* FROM cards c JOIN progress p ON p.card_id = c.id
-       WHERE p.due_date <= ? AND c.mastered_at IS NULL ${clause} ORDER BY p.due_date ASC LIMIT ?`
+       WHERE (p.fsrs_due IS NULL OR p.fsrs_due <= ?) AND c.mastered_at IS NULL ${clause}
+       ORDER BY COALESCE(p.fsrs_due, ?) ASC LIMIT ?`
     )
-    .all(today, ...params, count);
+    .all(now, ...params, now, count);
 
   if (due.length >= count) return due;
 

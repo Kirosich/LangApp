@@ -87,15 +87,29 @@ gamificationRouter.get('/listening-accuracy-trend', (req, res) => {
 // real review is as close to "repeat offender" as the current schema can
 // tell without adding a parallel lapse-count log.
 export const LEECH_EF_THRESHOLD = 2.0;
+// FSRS difficulty is 1 (easiest) .. 10 (hardest) -- the equivalent
+// "struggling" signal for anything reviewed after the FSRS switch
+// (Stage D), since easiness_factor freezes the moment a card's first
+// FSRS-driven review happens.
+export const FSRS_LEECH_DIFFICULTY_THRESHOLD = 7;
+// Either signal counts as a leech. Cards untouched by FSRS have
+// fsrs_difficulty NULL, so that half of the OR is simply false for them
+// -- no special-casing needed.
+export const LEECH_CONDITION_SQL = `(p.easiness_factor <= ${LEECH_EF_THRESHOLD} OR p.fsrs_difficulty >= ${FSRS_LEECH_DIFFICULTY_THRESHOLD})`;
+// FSRS-tracked difficult cards first (worst difficulty first), then
+// EF-only legacy leeches after. Two incompatible scales (low EF vs high
+// difficulty = bad) so they can't share one ORDER BY column directly.
+export const LEECH_ORDER_SQL = `(CASE WHEN p.fsrs_difficulty IS NOT NULL THEN 1 ELSE 0 END) DESC, p.fsrs_difficulty DESC, p.easiness_factor ASC`;
 
 gamificationRouter.get('/problem-cards', (req, res) => {
   const rows = db
     .prepare(
-      `SELECT c.*, p.easiness_factor, p.interval_days, p.repetitions, p.due_date, p.last_reviewed
+      `SELECT c.*, p.easiness_factor, p.interval_days, p.repetitions, p.due_date, p.last_reviewed, p.fsrs_difficulty
        FROM cards c
        JOIN progress p ON p.card_id = c.id
-       WHERE p.last_reviewed IS NOT NULL AND c.mastered_at IS NULL AND p.easiness_factor <= ${LEECH_EF_THRESHOLD}
-       ORDER BY p.easiness_factor ASC
+       WHERE (p.last_reviewed IS NOT NULL OR p.fsrs_last_review IS NOT NULL)
+         AND c.mastered_at IS NULL AND ${LEECH_CONDITION_SQL}
+       ORDER BY ${LEECH_ORDER_SQL}
        LIMIT 5`
     )
     .all();
@@ -108,7 +122,8 @@ gamificationRouter.get('/problem-cards', (req, res) => {
       translation_ru: r.translation_ru,
       theme: r.theme,
       easiness_factor: r.easiness_factor,
-      repetitions: r.repetitions
+      repetitions: r.repetitions,
+      fsrs_difficulty: r.fsrs_difficulty
     }))
   );
 });
@@ -142,12 +157,18 @@ gamificationRouter.get('/heatmap', (req, res) => {
 });
 
 gamificationRouter.get('/cumulative', (req, res) => {
+  // date() normalizes both formats to plain 'YYYY-MM-DD' -- fsrs_last_review
+  // is a full ISO timestamp, last_reviewed/mastered_at are already dates.
+  // Prefer fsrs_last_review (set for anything reviewed after the FSRS
+  // switch); fall back to the frozen SM-2 column for cards last touched
+  // before it.
+  const dateExpr = `date(COALESCE(p.fsrs_last_review, p.last_reviewed, c.mastered_at))`;
   const rows = db
     .prepare(
-      `SELECT COALESCE(p.last_reviewed, date(c.mastered_at)) AS date
+      `SELECT ${dateExpr} AS date
        FROM cards c
        LEFT JOIN progress p ON p.card_id = c.id
-       WHERE ${LEARNED_CONDITION_SQL} AND COALESCE(p.last_reviewed, date(c.mastered_at)) IS NOT NULL
+       WHERE ${LEARNED_CONDITION_SQL} AND ${dateExpr} IS NOT NULL
        ORDER BY date ASC`
     )
     .all();
@@ -234,11 +255,14 @@ export function weekTotals(db, startDate, endDate) {
          SELECT c.id FROM cards c JOIN progress p ON p.card_id = c.id
          WHERE p.repetitions >= 2 AND p.easiness_factor >= 2.5 AND p.last_reviewed BETWEEN ? AND ?
          UNION
+         SELECT c.id FROM cards c JOIN progress p ON p.card_id = c.id
+         WHERE p.fsrs_state = 'Review' AND p.fsrs_reps >= 2 AND date(p.fsrs_last_review) BETWEEN ? AND ?
+         UNION
          SELECT c.id FROM cards c
          WHERE c.mastered_at IS NOT NULL AND date(c.mastered_at) BETWEEN ? AND ?
        )`
     )
-    .get(startDate, endDate, startDate, endDate).count;
+    .get(startDate, endDate, startDate, endDate, startDate, endDate).count;
 
   const xp = db
     .prepare(`SELECT COALESCE(SUM(amount), 0) AS xp FROM xp_events WHERE date(created_at) BETWEEN ? AND ?`)

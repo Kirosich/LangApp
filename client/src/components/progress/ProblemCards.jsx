@@ -33,7 +33,9 @@ export default function ProblemCards({ cards, onChange }) {
               <span>{card.term}</span>
               <span className="text-neutral-500"> — {card.translation_ru}</span>
             </div>
-            <span className="text-xs text-red-400 shrink-0 ml-2">EF {card.easiness_factor.toFixed(2)}</span>
+            <span className="text-xs text-red-400 shrink-0 ml-2">
+              {card.fsrs_difficulty != null ? `Сложность ${card.fsrs_difficulty.toFixed(1)}` : `EF ${card.easiness_factor.toFixed(2)}`}
+            </span>
           </div>
           <div className="flex gap-3 text-xs">
             <Link to={`/cards/${card.id}/edit`} className="text-indigo-400 hover:text-indigo-300">

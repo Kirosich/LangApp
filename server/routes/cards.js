@@ -1,12 +1,12 @@
 import { Router } from 'express';
 import { db } from '../db/index.js';
-import { calculateNextReview } from '../srs/sm2.js';
+import { qualityToGrade, cardFromProgress, nextReview } from '../srs/fsrs.js';
 import { xpForReview, STREAK_BONUS_XP, MASTER_XP, calculateLevel } from '../xp/calculate.js';
 import { introduceDailyBacklog } from '../backlog/introduce.js';
 import { shuffle } from '../utils/shuffle.js';
 import { LEARNED_CONDITION_SQL } from '../db/learned.js';
 import { notifyLevelUp } from '../telegram/bot.js';
-import { LEECH_EF_THRESHOLD } from './gamification.js';
+import { LEECH_CONDITION_SQL, LEECH_ORDER_SQL } from './gamification.js';
 
 export const cardsRouter = Router();
 
@@ -44,20 +44,31 @@ function cardWithProgress(row) {
             interval_days: row.interval_days,
             repetitions: row.repetitions,
             due_date: row.due_date,
-            last_reviewed: row.last_reviewed
+            last_reviewed: row.last_reviewed,
+            fsrs_stability: row.fsrs_stability,
+            fsrs_difficulty: row.fsrs_difficulty,
+            fsrs_state: row.fsrs_state,
+            fsrs_due: row.fsrs_due
           }
         : null
   };
 }
 
 // LEFT JOIN: backlog cards have no progress row. Queries that filter on
-// p.<column> (like /due's due_date <= ?) still naturally exclude them,
+// p.<column> (like /due's due-ness check) still naturally exclude them,
 // since comparisons against NULL are false.
 const SELECT_WITH_PROGRESS = `
-  SELECT c.*, p.easiness_factor, p.interval_days, p.repetitions, p.due_date, p.last_reviewed
+  SELECT c.*, p.easiness_factor, p.interval_days, p.repetitions, p.due_date, p.last_reviewed,
+         p.fsrs_stability, p.fsrs_difficulty, p.fsrs_state, p.fsrs_due
   FROM cards c
   LEFT JOIN progress p ON p.card_id = c.id
 `;
+
+// A card is due once its FSRS-scheduled due timestamp has passed, or
+// (Stage D) it has never been through FSRS yet -- fsrs_due is NULL for
+// any card not yet reviewed since the switch, which must stay
+// immediately reviewable, same as due_date used to default to today.
+const FSRS_DUE_CONDITION_SQL = '(p.fsrs_due IS NULL OR p.fsrs_due <= ?)';
 
 cardsRouter.get('/due', (req, res) => {
   const { language, theme } = req.query;
@@ -67,9 +78,9 @@ cardsRouter.get('/due', (req, res) => {
   introduceDailyBacklog(db, 'kz');
   introduceDailyBacklog(db, 'en');
 
-  const today = new Date().toISOString().slice(0, 10);
-  const conditions = ['p.due_date <= ?', 'c.mastered_at IS NULL'];
-  const params = [today];
+  const now = new Date().toISOString();
+  const conditions = [FSRS_DUE_CONDITION_SQL, 'c.mastered_at IS NULL'];
+  const params = [now];
 
   if (language) {
     conditions.push('c.language = ?');
@@ -95,7 +106,7 @@ cardsRouter.get('/due', (req, res) => {
 cardsRouter.get('/workout', (req, res) => {
   const { language } = req.query;
   const count = Math.min(Math.max(parseInt(req.query.limit, 10) || 20, 5), 50);
-  const today = new Date().toISOString().slice(0, 10);
+  const now = new Date().toISOString();
 
   const langClause = language ? 'AND c.language = ?' : '';
   const langParams = language ? [language] : [];
@@ -103,18 +114,19 @@ cardsRouter.get('/workout', (req, res) => {
   const leeches = db
     .prepare(
       `SELECT c.id FROM cards c JOIN progress p ON p.card_id = c.id
-       WHERE p.last_reviewed IS NOT NULL AND c.mastered_at IS NULL AND p.easiness_factor <= ${LEECH_EF_THRESHOLD} ${langClause}
-       ORDER BY p.easiness_factor ASC`
+       WHERE (p.last_reviewed IS NOT NULL OR p.fsrs_last_review IS NOT NULL)
+         AND c.mastered_at IS NULL AND ${LEECH_CONDITION_SQL} ${langClause}
+       ORDER BY ${LEECH_ORDER_SQL}`
     )
     .all(...langParams);
 
   const due = db
     .prepare(
       `SELECT c.id FROM cards c JOIN progress p ON p.card_id = c.id
-       WHERE p.due_date <= ? AND c.mastered_at IS NULL ${langClause}
-       ORDER BY p.due_date ASC`
+       WHERE ${FSRS_DUE_CONDITION_SQL} AND c.mastered_at IS NULL ${langClause}
+       ORDER BY COALESCE(p.fsrs_due, ?) ASC`
     )
-    .all(today, ...langParams);
+    .all(now, ...langParams, now);
 
   const seen = new Set();
   const ids = [];
@@ -295,18 +307,42 @@ cardsRouter.post('/:id/review', (req, res) => {
   const progress = db.prepare('SELECT * FROM progress WHERE card_id = ?').get(id);
   if (!progress) return res.status(404).json({ error: 'Card not found' });
 
-  const next = calculateNextReview(progress, quality);
-  const today = new Date().toISOString().slice(0, 10);
+  try {
+    qualityToGrade(quality); // validates the mapping exists; nextReview() derives it again internally
+  } catch (e) {
+    return res.status(400).json({ error: e.message });
+  }
+
+  const now = new Date();
+  const requestRetention = db.prepare('SELECT request_retention FROM fsrs_settings WHERE id = 1').get()?.request_retention ?? 0.9;
+  const existingCard = cardFromProgress(progress);
+  const { progressFields, reviewLog } = nextReview({ existingCard, quality, requestRetention, now });
 
   const result = db.transaction(() => {
-    const reviewedAlreadyToday = db
-      .prepare('SELECT 1 FROM progress WHERE last_reviewed = ? LIMIT 1')
-      .get(today);
+    // Stage D: SM-2's easiness_factor/interval_days/repetitions/due_date/
+    // last_reviewed are no longer written -- they stay frozen at whatever
+    // value they had when this card's first FSRS review happens, kept in
+    // the schema only for comparison/rollback, per the plan. review_log
+    // (new in Stage A) is now the source of truth for "did I review
+    // anything today", replacing the old last_reviewed-based check.
+    const reviewedAlreadyToday = db.prepare(`SELECT 1 FROM review_log WHERE date(reviewed_at) = date(?) LIMIT 1`).get(now.toISOString());
 
     db.prepare(
-      `UPDATE progress SET easiness_factor = ?, interval_days = ?, repetitions = ?, due_date = ?, last_reviewed = ?
-       WHERE card_id = ?`
-    ).run(next.easiness_factor, next.interval_days, next.repetitions, next.due_date, next.last_reviewed, id);
+      `UPDATE progress SET
+         fsrs_stability = @fsrs_stability, fsrs_difficulty = @fsrs_difficulty, fsrs_state = @fsrs_state,
+         fsrs_due = @fsrs_due, fsrs_reps = @fsrs_reps, fsrs_lapses = @fsrs_lapses,
+         fsrs_learning_steps = @fsrs_learning_steps, fsrs_elapsed_days = @fsrs_elapsed_days,
+         fsrs_scheduled_days = @fsrs_scheduled_days, fsrs_last_review = @fsrs_last_review
+       WHERE card_id = @card_id`
+    ).run({ ...progressFields, card_id: id });
+
+    db.prepare(`INSERT INTO review_log (card_id, rating, reviewed_at, elapsed_days, scheduled_days) VALUES (?, ?, ?, ?, ?)`).run(
+      id,
+      reviewLog.rating,
+      now.toISOString(),
+      reviewLog.elapsed_days,
+      reviewLog.scheduled_days
+    );
 
     const xpGained = xpForReview(quality) + (reviewedAlreadyToday ? 0 : STREAK_BONUS_XP);
 
@@ -325,7 +361,10 @@ cardsRouter.post('/:id/review', (req, res) => {
 
   res.json({
     card_id: Number(id),
-    ...next,
+    fsrs_due: progressFields.fsrs_due,
+    fsrs_stability: progressFields.fsrs_stability,
+    fsrs_difficulty: progressFields.fsrs_difficulty,
+    fsrs_state: progressFields.fsrs_state,
     xp_gained: result.xpGained,
     leveled_up: result.leveledUp,
     total_xp: result.totalXp,

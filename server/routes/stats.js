@@ -36,8 +36,11 @@ statsRouter.get('/', (req, res) => {
 
   const totalCards = db.prepare(`SELECT COUNT(*) AS count FROM cards ${cardWhere}`).get(...cardParams).count;
 
-  const dueConditions = ['p.due_date <= ?'];
-  const dueParams = [today];
+  // fsrs_due NULL means "never reviewed since the FSRS switch" -- stays
+  // immediately due, same as due_date used to default to today.
+  const now = new Date().toISOString();
+  const dueConditions = ['(p.fsrs_due IS NULL OR p.fsrs_due <= ?)'];
+  const dueParams = [now];
   if (language) {
     dueConditions.push('c.language = ?');
     dueParams.push(language);
