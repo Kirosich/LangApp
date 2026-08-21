@@ -45,7 +45,7 @@ export default function Study() {
   const [flipped, setFlipped] = useState(false);
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState('');
-  const { recordCard, endNow } = useStudySession('study');
+  const { recordCard, endNow } = useStudySession('study', language);
   const sessionEndedForUiRef = useRef(false);
 
   const [practiceMode, setPracticeMode] = useState(false);

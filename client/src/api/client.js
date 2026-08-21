@@ -72,8 +72,8 @@ export const api = {
   deleteCard: (id) => apiFetch(`/api/cards/${id}`, { method: 'DELETE' }),
   reviewCard: (id, quality) => apiFetch(`/api/cards/${id}/review`, { method: 'POST', body: JSON.stringify({ quality }) }),
   getQuiz: (params = {}) => apiFetch(withQuery('/api/quiz', params)),
-  startSession: (sessionType) =>
-    apiFetch('/api/sessions/start', { method: 'POST', body: JSON.stringify({ session_type: sessionType }) }),
+  startSession: (sessionType, language) =>
+    apiFetch('/api/sessions/start', { method: 'POST', body: JSON.stringify({ session_type: sessionType, language }) }),
   endSession: (id, cardsReviewed, correctCount = null) =>
     apiFetch(`/api/sessions/${id}/end`, {
       method: 'POST',

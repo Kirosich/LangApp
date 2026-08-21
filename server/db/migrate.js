@@ -318,6 +318,13 @@ export function runMigrations(db) {
     // growth be scoped by difficulty instead of just theme. Backfilled for
     // existing cards by a one-off script, not here.
     addColumnIfMissing(db, 'cards', 'level', 'TEXT');
+
+    // Which language a session was scoped to, nullable -- lets time-spent
+    // stats be split per language. NULL for sessions started without a
+    // language filter (the "Все" tab can mix kz+en cards in one session,
+    // so there's no single language to attribute it to) and for anything
+    // recorded before this column existed.
+    addColumnIfMissing(db, 'study_sessions', 'language', 'TEXT');
   });
   migrate();
 }

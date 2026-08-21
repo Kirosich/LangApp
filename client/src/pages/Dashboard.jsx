@@ -158,11 +158,32 @@ export default function Dashboard() {
 
       {stats && (
         <div>
-          <h2 className="text-sm text-neutral-400 mb-2">Время в этом месяце</h2>
-          <div className="grid grid-cols-3 gap-3">
-            <StatCard label="Сегодня" value={formatMinutes(stats.total_minutes_today)} />
-            <StatCard label="За неделю" value={formatMinutes(stats.total_minutes_this_week)} />
-            <StatCard label="Всего" value={formatMinutes(stats.total_minutes_all_time)} />
+          <h2 className="text-sm text-neutral-400 mb-2">Время</h2>
+          <div className="space-y-3">
+            <div>
+              <div className="text-xs text-neutral-500 mb-1">Казахский</div>
+              <div className="grid grid-cols-3 gap-3">
+                <StatCard label="Сегодня" value={formatMinutes(stats.minutes_by_language.kz.today)} />
+                <StatCard label="За неделю" value={formatMinutes(stats.minutes_by_language.kz.this_week)} />
+                <StatCard label="Всего" value={formatMinutes(stats.minutes_by_language.kz.all_time)} />
+              </div>
+            </div>
+            <div>
+              <div className="text-xs text-neutral-500 mb-1">English</div>
+              <div className="grid grid-cols-3 gap-3">
+                <StatCard label="Сегодня" value={formatMinutes(stats.minutes_by_language.en.today)} />
+                <StatCard label="За неделю" value={formatMinutes(stats.minutes_by_language.en.this_week)} />
+                <StatCard label="Всего" value={formatMinutes(stats.minutes_by_language.en.all_time)} />
+              </div>
+            </div>
+            <div>
+              <div className="text-xs text-neutral-500 mb-1">Всего (включая смешанные сессии)</div>
+              <div className="grid grid-cols-3 gap-3">
+                <StatCard label="Сегодня" value={formatMinutes(stats.total_minutes_today)} />
+                <StatCard label="За неделю" value={formatMinutes(stats.total_minutes_this_week)} />
+                <StatCard label="Всего" value={formatMinutes(stats.total_minutes_all_time)} />
+              </div>
+            </div>
           </div>
         </div>
       )}

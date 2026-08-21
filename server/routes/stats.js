@@ -60,6 +60,24 @@ statsRouter.get('/', (req, res) => {
     by_theme: byTheme,
     total_minutes_today: sumMinutes('AND date(started_at) = ?', [today]),
     total_minutes_this_week: sumMinutes('AND date(started_at) >= ?', [weekAgo]),
-    total_minutes_all_time: sumMinutes('')
+    total_minutes_all_time: sumMinutes(''),
+    // Split by session.language -- always both, regardless of the
+    // `language` query param above, so the dashboard can show kz/en
+    // side by side. Sessions started without a language filter (mixed
+    // "Все" sessions, or anything from before this column existed) fall
+    // into neither bucket, so these two won't always sum to the totals
+    // above.
+    minutes_by_language: {
+      kz: {
+        today: sumMinutes('AND date(started_at) = ? AND language = ?', [today, 'kz']),
+        this_week: sumMinutes('AND date(started_at) >= ? AND language = ?', [weekAgo, 'kz']),
+        all_time: sumMinutes('AND language = ?', ['kz'])
+      },
+      en: {
+        today: sumMinutes('AND date(started_at) = ? AND language = ?', [today, 'en']),
+        this_week: sumMinutes('AND date(started_at) >= ? AND language = ?', [weekAgo, 'en']),
+        all_time: sumMinutes('AND language = ?', ['en'])
+      }
+    }
   });
 });

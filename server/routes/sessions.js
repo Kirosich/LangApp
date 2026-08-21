@@ -17,12 +17,16 @@ const VALID_SESSION_TYPES = new Set([
 ]);
 
 sessionsRouter.post('/start', (req, res) => {
-  const { session_type } = req.body;
+  const { session_type, language } = req.body;
   if (!VALID_SESSION_TYPES.has(session_type)) {
     return res.status(400).json({ error: `session_type must be one of: ${[...VALID_SESSION_TYPES].join(', ')}` });
   }
+  // Only 'kz'/'en' get stored -- anything else (missing, '', a mixed
+  // "Все" session) stays NULL, since there's no single language to
+  // attribute a mixed session's time to.
+  const sessionLanguage = language === 'kz' || language === 'en' ? language : null;
 
-  const info = db.prepare('INSERT INTO study_sessions (session_type) VALUES (?)').run(session_type);
+  const info = db.prepare('INSERT INTO study_sessions (session_type, language) VALUES (?, ?)').run(session_type, sessionLanguage);
   res.status(201).json({ id: info.lastInsertRowid });
 });
 

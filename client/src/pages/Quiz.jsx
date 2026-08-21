@@ -78,7 +78,7 @@ export default function Quiz() {
       cardsReviewedRef.current = 0;
       correctCountRef.current = 0;
       sessionEndedRef.current = false;
-      const session = await api.startSession(SESSION_TYPE_FOR_QUIZ[type]);
+      const session = await api.startSession(SESSION_TYPE_FOR_QUIZ[type], language);
       sessionIdRef.current = session.id;
     } catch (e) {
       setError(e.message);

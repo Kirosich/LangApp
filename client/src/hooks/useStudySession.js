@@ -1,7 +1,7 @@
 import { useEffect, useRef } from 'react';
 import { api, endSessionOnUnload } from '../api/client';
 
-export function useStudySession(sessionType) {
+export function useStudySession(sessionType, language) {
   const sessionIdRef = useRef(null);
   const countRef = useRef(0);
   const endedRef = useRef(false);
@@ -10,7 +10,7 @@ export function useStudySession(sessionType) {
     let cancelled = false;
 
     api
-      .startSession(sessionType)
+      .startSession(sessionType, language)
       .then((res) => {
         if (cancelled) {
           // Effect was already cleaned up (e.g. React StrictMode's dev double-invoke)
