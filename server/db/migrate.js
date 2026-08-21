@@ -325,6 +325,12 @@ export function runMigrations(db) {
     // so there's no single language to attribute it to) and for anything
     // recorded before this column existed.
     addColumnIfMissing(db, 'study_sessions', 'language', 'TEXT');
+
+    // Groups theory_topics into named categories (падежи, tenses, etc.) --
+    // topics within a category can span multiple CEFR levels; the
+    // category's own level range is computed from its topics rather than
+    // stored, so it can't drift out of sync.
+    addColumnIfMissing(db, 'theory_topics', 'category', 'TEXT');
   });
   migrate();
 }

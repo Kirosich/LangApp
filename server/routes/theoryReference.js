@@ -21,7 +21,7 @@ theoryReferenceRouter.get('/', (req, res) => {
 
   const rows = db
     .prepare(
-      `SELECT t.id, t.language, t.slug, t.title, t.level, t.order_index, t.summary, p.read_at, p.read_count
+      `SELECT t.id, t.language, t.slug, t.title, t.level, t.category, t.order_index, t.summary, p.read_at, p.read_count
        FROM theory_topics t
        LEFT JOIN theory_progress p ON p.topic_id = t.id
        ${where}
@@ -36,6 +36,7 @@ theoryReferenceRouter.get('/', (req, res) => {
       slug: r.slug,
       title: r.title,
       level: r.level,
+      category: r.category,
       summary: r.summary,
       read: Boolean(r.read_at),
       read_count: r.read_count ?? 0
