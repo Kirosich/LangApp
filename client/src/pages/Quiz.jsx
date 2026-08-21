@@ -4,18 +4,21 @@ import { api, endSessionOnUnload } from '../api/client';
 import ChoiceQuiz from '../components/quiz/ChoiceQuiz';
 import TypingQuiz from '../components/quiz/TypingQuiz';
 import MatchingQuiz from '../components/quiz/MatchingQuiz';
+import SentenceQuiz from '../components/quiz/SentenceQuiz';
 import { celebrateBadge } from '../utils/confetti';
 
 const TYPE_OPTIONS = [
   { value: 'choice', label: 'Выбор варианта' },
   { value: 'typing', label: 'Ввод с клавиатуры' },
-  { value: 'matching', label: 'Сопоставление пар' }
+  { value: 'matching', label: 'Сопоставление пар' },
+  { value: 'sentence', label: 'Собери предложение' }
 ];
 
 const SESSION_TYPE_FOR_QUIZ = {
   choice: 'quiz_choice',
   typing: 'quiz_typing',
-  matching: 'quiz_matching'
+  matching: 'quiz_matching',
+  sentence: 'quiz_sentence'
 };
 
 export default function Quiz() {
@@ -23,7 +26,7 @@ export default function Quiz() {
 
   const [stage, setStage] = useState('settings'); // settings | playing | result
   const [themes, setThemes] = useState([]);
-  const [type, setType] = useState('choice');
+  const [type, setType] = useState(searchParams.get('type') || 'choice');
   const [theme, setTheme] = useState('');
   const [language, setLanguage] = useState(searchParams.get('language') || '');
   const [count, setCount] = useState(10);
@@ -139,6 +142,13 @@ export default function Quiz() {
       return (
         <div className="p-4 max-w-lg mx-auto">
           <MatchingQuiz rounds={quizData.rounds} onFinish={finish} onProgress={progress} />
+        </div>
+      );
+    }
+    if (quizData.type === 'sentence' && quizData.questions.length > 0) {
+      return (
+        <div className="p-4 max-w-lg mx-auto">
+          <SentenceQuiz questions={quizData.questions} onFinish={finish} onProgress={progress} />
         </div>
       );
     }

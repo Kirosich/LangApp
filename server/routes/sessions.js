@@ -5,7 +5,7 @@ import { BADGE_DEFINITIONS } from '../gamification/badgeDefinitions.js';
 
 export const sessionsRouter = Router();
 
-const VALID_SESSION_TYPES = new Set(['study', 'quiz_choice', 'quiz_typing', 'quiz_matching']);
+const VALID_SESSION_TYPES = new Set(['study', 'quiz_choice', 'quiz_typing', 'quiz_matching', 'quiz_sentence']);
 
 sessionsRouter.post('/start', (req, res) => {
   const { session_type } = req.body;

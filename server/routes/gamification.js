@@ -53,7 +53,7 @@ gamificationRouter.get('/accuracy-trend', (req, res) => {
               SUM(correct_count) AS correct,
               SUM(cards_reviewed) AS total
        FROM study_sessions
-       WHERE ended_at IS NOT NULL AND correct_count IS NOT NULL AND session_type IN ('quiz_choice', 'quiz_typing', 'quiz_matching')
+       WHERE ended_at IS NOT NULL AND correct_count IS NOT NULL AND session_type IN ('quiz_choice', 'quiz_typing', 'quiz_matching', 'quiz_sentence')
        GROUP BY week
        ORDER BY week ASC`
     )

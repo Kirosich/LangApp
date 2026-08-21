@@ -70,6 +70,7 @@ export default function Dashboard() {
 
   const actionSuffix = language ? `?language=${language}` : '';
   const practiceSuffix = language ? `?language=${language}&practice=100` : '?practice=100';
+  const sentenceSuffix = language ? `?language=${language}&type=sentence` : '?type=sentence';
 
   return (
     <div className="p-4 max-w-lg mx-auto space-y-6">
@@ -106,6 +107,7 @@ export default function Dashboard() {
         <ActionButton to="/cards/new" label="Добавить карточку" icon="➕" />
         <ActionButton to="/browse" label="Все карточки" icon="🗂️" />
         <ActionButton to={`/study${practiceSuffix}`} label="Тренировка · 100 слов" icon="🔁" className="col-span-2" />
+        <ActionButton to={`/quiz${sentenceSuffix}`} label="Собери предложение" icon="🧩" className="col-span-2" />
       </div>
 
       <div>

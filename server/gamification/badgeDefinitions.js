@@ -8,7 +8,7 @@ export const BADGE_DEFINITIONS = [
   { code: 'marathon_30min', icon: '🏃', title: 'Марафонец', description: 'Сессия дольше 30 минут' }
 ];
 
-const QUIZ_SESSION_TYPES = new Set(['quiz_choice', 'quiz_typing', 'quiz_matching']);
+const QUIZ_SESSION_TYPES = new Set(['quiz_choice', 'quiz_typing', 'quiz_matching', 'quiz_sentence']);
 
 export function isQuizSession(sessionType) {
   return QUIZ_SESSION_TYPES.has(sessionType);

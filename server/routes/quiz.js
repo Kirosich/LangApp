@@ -4,7 +4,7 @@ import { shuffle } from '../utils/shuffle.js';
 
 export const quizRouter = Router();
 
-const VALID_TYPES = new Set(['choice', 'typing', 'matching']);
+const VALID_TYPES = new Set(['choice', 'typing', 'matching', 'sentence']);
 
 function buildFilterClause(theme, language, alias = 'c') {
   const conditions = [];
@@ -79,6 +79,42 @@ function buildTypingQuestions(cards) {
   }));
 }
 
+// "Собери предложение": only cards with a real example sentence, and
+// never from the backlog (status='active' covers both in-progress and
+// mastered cards, since mastering doesn't change status -- see
+// cardsRouter POST /:id/master).
+function selectSentenceCards({ theme, language, count }) {
+  const { clause, params } = buildFilterClause(theme, language);
+  return db
+    .prepare(
+      `SELECT c.* FROM cards c
+       WHERE c.status = 'active' AND c.example_sentence IS NOT NULL
+         AND instr(trim(c.example_sentence), ' ') > 0 ${clause}
+       ORDER BY RANDOM() LIMIT ?`
+    )
+    .all(...params, count);
+}
+
+function buildSentenceQuestions(cards) {
+  return cards.map((card) => {
+    // Splitting on whitespace keeps punctuation glued to its word
+    // (e.g. "Bread," "wait!") instead of turning it into a separate tile.
+    const words = card.example_sentence.trim().split(/\s+/);
+    const tokens = words.map((text, position) => ({ id: position, text }));
+
+    return {
+      card_id: card.id,
+      language: card.language,
+      theme: card.theme,
+      term: card.term,
+      translation_ru: card.translation_ru,
+      sentence: card.example_sentence,
+      word_count: tokens.length,
+      words: shuffle(tokens)
+    };
+  });
+}
+
 function buildMatchingRounds(cards) {
   const rounds = [];
   for (let i = 0; i < cards.length; i += 6) {
@@ -101,6 +137,11 @@ quizRouter.get('/', (req, res) => {
 
   if (!VALID_TYPES.has(type)) {
     return res.status(400).json({ error: `type must be one of: ${[...VALID_TYPES].join(', ')}` });
+  }
+
+  if (type === 'sentence') {
+    const sentenceCards = selectSentenceCards({ theme, language, count });
+    return res.json({ type, questions: buildSentenceQuestions(sentenceCards) });
   }
 
   const cards = selectQuizCards({ theme, language, count });
