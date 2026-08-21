@@ -68,7 +68,16 @@ const SELECT_WITH_PROGRESS = `
 // (Stage D) it has never been through FSRS yet -- fsrs_due is NULL for
 // any card not yet reviewed since the switch, which must stay
 // immediately reviewable, same as due_date used to default to today.
-const FSRS_DUE_CONDITION_SQL = '(p.fsrs_due IS NULL OR p.fsrs_due <= ?)';
+//
+// BUG FIXED: "fsrs_due IS NULL" is also true for backlog cards, which
+// have no progress row at all -- under SELECT_WITH_PROGRESS's LEFT JOIN,
+// a missing row means every p.* column (including p.card_id) reads as
+// NULL. Without the p.card_id IS NOT NULL guard, backlog cards leaked
+// into /due, and rating one 404'd ("Card not found") since /review looks
+// up a real progress row that doesn't exist for them. The old due_date
+// condition never had this problem because NULL <= today is false, not
+// true -- fsrs_due's NULL-means-due semantics inverted that safety net.
+const FSRS_DUE_CONDITION_SQL = '(p.card_id IS NOT NULL AND (p.fsrs_due IS NULL OR p.fsrs_due <= ?))';
 
 cardsRouter.get('/due', (req, res) => {
   const { language, theme } = req.query;
