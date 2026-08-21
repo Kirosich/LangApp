@@ -304,6 +304,28 @@ function ensureSessionTypeAllowsLevelExam(db) {
   `);
 }
 
+function ensureSessionTypeAllowsReading(db) {
+  const row = db.prepare(`SELECT sql FROM sqlite_master WHERE type = 'table' AND name = 'study_sessions'`).get();
+  if (!row || row.sql.includes("'reading'")) return;
+
+  db.exec(`
+    ALTER TABLE study_sessions RENAME TO study_sessions_old;
+    CREATE TABLE study_sessions (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      session_type TEXT NOT NULL CHECK (session_type IN ('study', 'quiz_choice', 'quiz_typing', 'quiz_matching', 'quiz_sentence', 'theory_drill', 'quiz_listening', 'level_exam', 'reading')),
+      started_at TEXT NOT NULL DEFAULT (datetime('now')),
+      ended_at TEXT,
+      cards_reviewed INTEGER NOT NULL DEFAULT 0,
+      correct_count INTEGER,
+      language TEXT
+    );
+    INSERT INTO study_sessions (id, session_type, started_at, ended_at, cards_reviewed, correct_count, language)
+      SELECT id, session_type, started_at, ended_at, cards_reviewed, correct_count, language FROM study_sessions_old;
+    DROP TABLE study_sessions_old;
+    CREATE INDEX IF NOT EXISTS idx_sessions_started_at ON study_sessions(started_at);
+  `);
+}
+
 export function runMigrations(db) {
   db.pragma('foreign_keys = ON');
   const migrate = db.transaction(() => {
@@ -378,6 +400,56 @@ export function runMigrations(db) {
       );
       CREATE INDEX IF NOT EXISTS idx_level_exam_attempts_lang_level ON level_exam_attempts(language, level);
     `);
+
+    // Reading section -- structurally a close copy of dialogues (text +
+    // new-words callout + progress), plus per-text comprehension
+    // exercises. `style` distinguishes texts built tightly around deck
+    // vocabulary ('textbook') from ones written in an authentic genre
+    // register with more natural (less constrained) language ('genre') --
+    // both are original writing, never copied from external sources.
+    db.exec(`
+      CREATE TABLE IF NOT EXISTS reading_texts (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        language TEXT NOT NULL CHECK (language IN ('kz', 'en')),
+        slug TEXT NOT NULL UNIQUE,
+        title TEXT NOT NULL,
+        theme TEXT NOT NULL,
+        level TEXT NOT NULL,
+        style TEXT NOT NULL CHECK (style IN ('textbook', 'genre')),
+        body TEXT NOT NULL,
+        order_index INTEGER NOT NULL DEFAULT 0,
+        created_at TEXT NOT NULL DEFAULT (datetime('now'))
+      );
+      CREATE TABLE IF NOT EXISTS reading_new_words (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        text_id INTEGER NOT NULL REFERENCES reading_texts(id) ON DELETE CASCADE,
+        term TEXT NOT NULL,
+        translation_ru TEXT NOT NULL,
+        position INTEGER NOT NULL DEFAULT 0
+      );
+      CREATE TABLE IF NOT EXISTS reading_exercises (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        text_id INTEGER NOT NULL REFERENCES reading_texts(id) ON DELETE CASCADE,
+        prompt TEXT NOT NULL,
+        correct_answer TEXT NOT NULL,
+        distractors TEXT NOT NULL,
+        position INTEGER NOT NULL DEFAULT 0
+      );
+      CREATE TABLE IF NOT EXISTS reading_progress (
+        text_id INTEGER PRIMARY KEY REFERENCES reading_texts(id) ON DELETE CASCADE,
+        read_at TEXT,
+        read_count INTEGER NOT NULL DEFAULT 0,
+        best_score INTEGER,
+        best_score_total INTEGER
+      );
+      CREATE INDEX IF NOT EXISTS idx_reading_texts_language ON reading_texts(language);
+      CREATE INDEX IF NOT EXISTS idx_reading_new_words_text ON reading_new_words(text_id);
+      CREATE INDEX IF NOT EXISTS idx_reading_exercises_text ON reading_exercises(text_id);
+    `);
+
+    // Must run after study_sessions' `language` column exists (recreate
+    // carries it through), same as ensureSessionTypeAllowsLevelExam.
+    ensureSessionTypeAllowsReading(db);
   });
   migrate();
 }

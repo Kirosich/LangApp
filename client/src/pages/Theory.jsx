@@ -3,11 +3,13 @@ import TheoryPlan from '../components/theory/TheoryPlan';
 import TheoryReferenceList from '../components/theory/TheoryReferenceList';
 import DialogueList from '../components/theory/DialogueList';
 import LevelExamPicker from '../components/theory/LevelExamPicker';
+import ReadingList from '../components/theory/ReadingList';
 
 const VIEWS = [
   { value: 'reference', label: 'Справочник' },
   { value: 'plan', label: 'Мой план' },
   { value: 'dialogues', label: 'Диалоги' },
+  { value: 'reading', label: 'Чтение' },
   { value: 'exam', label: 'Экзамен' }
 ];
 
@@ -37,6 +39,7 @@ export default function Theory() {
       {view === 'reference' && <TheoryReferenceList />}
       {view === 'plan' && <TheoryPlan />}
       {view === 'dialogues' && <DialogueList />}
+      {view === 'reading' && <ReadingList />}
       {view === 'exam' && <LevelExamPicker />}
     </div>
   );

@@ -12,6 +12,7 @@ import TheoryCourse from './pages/TheoryCourse';
 import TheoryBlock from './pages/TheoryBlock';
 import TheoryTopic from './pages/TheoryTopic';
 import DialogueDetail from './pages/DialogueDetail';
+import ReadingDetail from './pages/ReadingDetail';
 import Settings from './pages/Settings';
 import KnownWords from './pages/KnownWords';
 
@@ -44,6 +45,7 @@ function AppRoutes() {
         <Route path="theory/blocks/:id" element={<TheoryBlock />} />
         <Route path="theory/topics/:slug" element={<TheoryTopic />} />
         <Route path="theory/dialogues/:slug" element={<DialogueDetail />} />
+        <Route path="theory/reading/:slug" element={<ReadingDetail />} />
         <Route path="settings" element={<Settings />} />
         <Route path="known" element={<KnownWords />} />
       </Route>

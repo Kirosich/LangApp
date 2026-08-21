@@ -126,7 +126,12 @@ export const api = {
   getExamQuestions: (language, level) => apiFetch(withQuery('/api/exam/questions', { language, level })),
   submitExamAttempt: (language, level, answers) =>
     apiFetch('/api/exam/attempts', { method: 'POST', body: JSON.stringify({ language, level, answers }) }),
-  getCoachingSummary: (language) => apiFetch(withQuery('/api/coaching/summary', { language }))
+  getCoachingSummary: (language) => apiFetch(withQuery('/api/coaching/summary', { language })),
+  getReadingTexts: (language) => apiFetch(withQuery('/api/reading', { language })),
+  getReadingText: (slug) => apiFetch(`/api/reading/${slug}`),
+  markReadingRead: (slug) => apiFetch(`/api/reading/${slug}/read`, { method: 'POST' }),
+  submitReadingExercises: (slug, answers) =>
+    apiFetch(`/api/reading/${slug}/exercises`, { method: 'POST', body: JSON.stringify({ answers }) })
 };
 
 export function endSessionOnUnload(id, cardsReviewed, correctCount = null) {

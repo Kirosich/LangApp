@@ -15,6 +15,7 @@ import { dialoguesRouter } from './routes/dialogues.js';
 import { questsRouter } from './routes/quests.js';
 import { coachingRouter } from './routes/coaching.js';
 import { examRouter } from './routes/exam.js';
+import { readingRouter } from './routes/reading.js';
 import { startTelegramBot } from './telegram/bot.js';
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
@@ -37,6 +38,7 @@ app.use('/api/dialogues', dialoguesRouter);
 app.use('/api/quests', questsRouter);
 app.use('/api/coaching', coachingRouter);
 app.use('/api/exam', examRouter);
+app.use('/api/reading', readingRouter);
 
 app.use(express.static(CLIENT_DIST));
 app.get('*', (req, res) => {
