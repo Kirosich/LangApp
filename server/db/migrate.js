@@ -177,7 +177,32 @@ const MIGRATIONS = [
   )`,
   `CREATE INDEX IF NOT EXISTS idx_dialogues_language ON dialogues(language)`,
   `CREATE INDEX IF NOT EXISTS idx_dialogue_lines_dialogue ON dialogue_lines(dialogue_id)`,
-  `CREATE INDEX IF NOT EXISTS idx_dialogue_new_words_dialogue ON dialogue_new_words(dialogue_id)`
+  `CREATE INDEX IF NOT EXISTS idx_dialogue_new_words_dialogue ON dialogue_new_words(dialogue_id)`,
+
+  // --- FSRS migration, Stage A -------------------------------------
+  // Raw review history -- doesn't exist yet (the old review_log table
+  // was dropped years ago and never replaced). Needed both to build
+  // each review's elapsed_days/scheduled_days and, later, to
+  // personalize FSRS's weights once there's 1000+ reviews logged.
+  `CREATE TABLE IF NOT EXISTS review_log (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    card_id INTEGER NOT NULL REFERENCES cards(id) ON DELETE CASCADE,
+    rating INTEGER NOT NULL CHECK (rating IN (1, 2, 3, 4)),
+    reviewed_at TEXT NOT NULL DEFAULT (datetime('now')),
+    elapsed_days REAL,
+    scheduled_days REAL
+  )`,
+  `CREATE INDEX IF NOT EXISTS idx_review_log_card ON review_log(card_id)`,
+  `CREATE INDEX IF NOT EXISTS idx_review_log_reviewed_at ON review_log(reviewed_at)`,
+
+  // Single-row settings table (same pattern as user_stats id=1) for the
+  // one FSRS knob worth exposing: target retention. Not surfaced as a
+  // required UI control -- deliberately DB-only for now, per the plan.
+  `CREATE TABLE IF NOT EXISTS fsrs_settings (
+    id INTEGER PRIMARY KEY CHECK (id = 1),
+    request_retention REAL NOT NULL DEFAULT 0.9
+  )`,
+  `INSERT OR IGNORE INTO fsrs_settings (id) VALUES (1)`
 ];
 
 function addColumnIfMissing(db, table, column, definition) {
@@ -269,6 +294,25 @@ export function runMigrations(db) {
     // Backfill: cards that predate this column are already active, so treat
     // their creation as their activation moment.
     db.exec(`UPDATE cards SET activated_at = created_at WHERE status = 'active' AND activated_at IS NULL`);
+
+    // FSRS fields on progress (Stage A). Old SM-2 columns (easiness_factor,
+    // interval_days, repetitions, due_date, last_reviewed) are untouched
+    // and keep being the live source of truth until Stage D switches
+    // reads over to fsrs_due. All nullable: backlog/mastered cards never
+    // get these populated (see Stage C), so a plain NULL check is how
+    // "has this card been migrated to FSRS yet" gets answered later.
+    addColumnIfMissing(db, 'progress', 'fsrs_stability', 'REAL');
+    addColumnIfMissing(db, 'progress', 'fsrs_difficulty', 'REAL');
+    addColumnIfMissing(db, 'progress', 'fsrs_state', 'TEXT');
+    addColumnIfMissing(db, 'progress', 'fsrs_due', 'TEXT');
+    // Round out ts-fsrs's Card shape so it can be reconstructed exactly
+    // between reviews instead of being approximated each time.
+    addColumnIfMissing(db, 'progress', 'fsrs_reps', 'INTEGER');
+    addColumnIfMissing(db, 'progress', 'fsrs_lapses', 'INTEGER');
+    addColumnIfMissing(db, 'progress', 'fsrs_learning_steps', 'INTEGER');
+    addColumnIfMissing(db, 'progress', 'fsrs_elapsed_days', 'REAL');
+    addColumnIfMissing(db, 'progress', 'fsrs_scheduled_days', 'REAL');
+    addColumnIfMissing(db, 'progress', 'fsrs_last_review', 'TEXT');
   });
   migrate();
 }
