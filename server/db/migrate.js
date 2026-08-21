@@ -370,6 +370,32 @@ function ensureSessionTypeAllowsProficiencyTest(db) {
   `);
 }
 
+// Widens badges from UNIQUE(code) to UNIQUE(code, language) -- most
+// badges (streak_7, streak_30, words_100, words_250, perfect_quiz) can
+// now be earned once per language; a few (night_owl, marathon_30min --
+// about *when*/*how long* a session was, not its content) stay
+// language-independent, stored with language = NULL. Existing badge
+// rows keep language = NULL (legacy/unattributed), same reasoning as
+// user_stats_by_language above -- there's no reliable way to say
+// in hindsight which language a past streak_7 belonged to.
+function ensureBadgesAllowPerLanguage(db) {
+  const row = db.prepare(`SELECT sql FROM sqlite_master WHERE type = 'table' AND name = 'badges'`).get();
+  if (!row || row.sql.includes('language')) return;
+
+  db.exec(`
+    ALTER TABLE badges RENAME TO badges_old;
+    CREATE TABLE badges (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      code TEXT NOT NULL,
+      language TEXT,
+      earned_at TEXT NOT NULL DEFAULT (datetime('now'))
+    );
+    INSERT INTO badges (id, code, earned_at) SELECT id, code, earned_at FROM badges_old;
+    DROP TABLE badges_old;
+    CREATE UNIQUE INDEX IF NOT EXISTS idx_badges_code_language ON badges(code, language);
+  `);
+}
+
 export function runMigrations(db) {
   db.pragma('foreign_keys = ON');
   const migrate = db.transaction(() => {
@@ -604,6 +630,32 @@ export function runMigrations(db) {
       CREATE INDEX IF NOT EXISTS idx_proficiency_listening_texts_lang_level ON proficiency_listening_texts(language, level);
       CREATE INDEX IF NOT EXISTS idx_proficiency_minimal_pairs_language ON proficiency_minimal_pairs(language);
     `);
+
+    // Per-language XP/level/streak tracking, additive alongside the
+    // existing app-wide `user_stats` (id=1) -- deliberately NOT backfilled
+    // from history. Investigated before writing this: xp_events has no
+    // card/session/language link at all (just amount + timestamp), and
+    // review_log (which could otherwise map card_id -> language) has 0
+    // rows -- it only started logging with the FSRS migration. 47 of the
+    // 48 existing study_sessions predate the `language` column entirely.
+    // There is no honest way to split the existing 616 XP / streak-2
+    // history by language without inventing numbers, so these two rows
+    // start at zero and accumulate for real from here on, same as every
+    // XP-awarding code path already knows the language of what it's
+    // crediting (a card, a reading text, a dialogue, a theory topic).
+    db.exec(`
+      CREATE TABLE IF NOT EXISTS user_stats_by_language (
+        language TEXT PRIMARY KEY CHECK (language IN ('kz', 'en')),
+        total_xp INTEGER NOT NULL DEFAULT 0,
+        current_level INTEGER NOT NULL DEFAULT 1,
+        longest_streak INTEGER NOT NULL DEFAULT 0,
+        best_day_cards INTEGER NOT NULL DEFAULT 0,
+        best_session_minutes INTEGER NOT NULL DEFAULT 0
+      );
+      INSERT OR IGNORE INTO user_stats_by_language (language) VALUES ('kz'), ('en');
+    `);
+
+    ensureBadgesAllowPerLanguage(db);
   });
   migrate();
 }

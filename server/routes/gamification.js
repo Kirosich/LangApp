@@ -14,9 +14,20 @@ export function addDays(dateStr, days) {
   return d.toISOString().slice(0, 10);
 }
 
+// language omitted -> exact old behavior, reading the app-wide
+// user_stats(id=1) row and every badge regardless of language. Passed
+// -> reads user_stats_by_language instead, and badges scoped to that
+// language OR language-independent ones (night_owl, marathon_30min,
+// and any legacy pre-migration badge -- see migrate.js's
+// ensureBadgesAllowPerLanguage for why those exist).
 gamificationRouter.get('/summary', (req, res) => {
-  const stats = db.prepare('SELECT * FROM user_stats WHERE id = 1').get();
-  const badges = db.prepare('SELECT code, earned_at FROM badges ORDER BY earned_at DESC').all();
+  const { language } = req.query;
+  const stats = language
+    ? db.prepare('SELECT * FROM user_stats_by_language WHERE language = ?').get(language)
+    : db.prepare('SELECT * FROM user_stats WHERE id = 1').get();
+  const badges = language
+    ? db.prepare('SELECT code, earned_at FROM badges WHERE language = ? OR language IS NULL ORDER BY earned_at DESC').all(language)
+    : db.prepare('SELECT code, earned_at FROM badges ORDER BY earned_at DESC').all();
 
   res.json({
     total_xp: stats.total_xp,
@@ -33,7 +44,10 @@ gamificationRouter.get('/summary', (req, res) => {
 });
 
 gamificationRouter.get('/badges', (req, res) => {
-  const earned = db.prepare('SELECT code, earned_at FROM badges').all();
+  const { language } = req.query;
+  const earned = language
+    ? db.prepare('SELECT code, earned_at FROM badges WHERE language = ? OR language IS NULL').all(language)
+    : db.prepare('SELECT code, earned_at FROM badges').all();
   const earnedMap = new Map(earned.map((b) => [b.code, b.earned_at]));
 
   res.json(
@@ -240,29 +254,50 @@ export function mondayOf(dateStr) {
   return d.toISOString().slice(0, 10);
 }
 
-export function weekTotals(db, startDate, endDate) {
+// language omitted -> exact old behavior (mixed). Passed -> minutes and
+// words_learned are scoped (study_sessions.language and cards.language
+// respectively, both real per-row facts); `xp` stays app-wide always --
+// xp_events has no card/session/language link at all (just amount +
+// timestamp), so it can't be split by language, not even going forward
+// without changing what gets logged there.
+export function weekTotals(db, startDate, endDate, language) {
+  const sessionLangClause = language ? 'AND language = ?' : '';
+  const sessionLangParam = language ? [language] : [];
+  const cardLangClause = language ? 'AND c.language = ?' : '';
+  const cardLangParam = language ? [language] : [];
+
   const minutes = db
     .prepare(
       `SELECT COALESCE(SUM((julianday(ended_at) - julianday(started_at)) * 24 * 60), 0) AS minutes
        FROM study_sessions
-       WHERE ended_at IS NOT NULL AND date(started_at) BETWEEN ? AND ?`
+       WHERE ended_at IS NOT NULL AND date(started_at) BETWEEN ? AND ? ${sessionLangClause}`
     )
-    .get(startDate, endDate).minutes;
+    .get(startDate, endDate, ...sessionLangParam).minutes;
 
   const wordsLearned = db
     .prepare(
       `SELECT COUNT(*) AS count FROM (
          SELECT c.id FROM cards c JOIN progress p ON p.card_id = c.id
-         WHERE p.repetitions >= 2 AND p.easiness_factor >= 2.5 AND p.last_reviewed BETWEEN ? AND ?
+         WHERE p.repetitions >= 2 AND p.easiness_factor >= 2.5 AND p.last_reviewed BETWEEN ? AND ? ${cardLangClause}
          UNION
          SELECT c.id FROM cards c JOIN progress p ON p.card_id = c.id
-         WHERE p.fsrs_state = 'Review' AND p.fsrs_reps >= 2 AND date(p.fsrs_last_review) BETWEEN ? AND ?
+         WHERE p.fsrs_state = 'Review' AND p.fsrs_reps >= 2 AND date(p.fsrs_last_review) BETWEEN ? AND ? ${cardLangClause}
          UNION
          SELECT c.id FROM cards c
-         WHERE c.mastered_at IS NOT NULL AND date(c.mastered_at) BETWEEN ? AND ?
+         WHERE c.mastered_at IS NOT NULL AND date(c.mastered_at) BETWEEN ? AND ? ${cardLangClause}
        )`
     )
-    .get(startDate, endDate, startDate, endDate, startDate, endDate).count;
+    .get(
+      startDate,
+      endDate,
+      ...cardLangParam,
+      startDate,
+      endDate,
+      ...cardLangParam,
+      startDate,
+      endDate,
+      ...cardLangParam
+    ).count;
 
   const xp = db
     .prepare(`SELECT COALESCE(SUM(amount), 0) AS xp FROM xp_events WHERE date(created_at) BETWEEN ? AND ?`)

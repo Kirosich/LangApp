@@ -2,6 +2,7 @@ import { Router } from 'express';
 import { db } from '../db/index.js';
 import { calculateLevel } from '../xp/calculate.js';
 import { notifyLevelUp } from '../telegram/bot.js';
+import { creditLanguageXp } from '../xp/perLanguage.js';
 
 export const dialoguesRouter = Router();
 
@@ -74,7 +75,7 @@ dialoguesRouter.get('/:slug', (req, res) => {
 });
 
 dialoguesRouter.post('/:slug/read', (req, res) => {
-  const dialogue = db.prepare('SELECT id FROM dialogues WHERE slug = ?').get(req.params.slug);
+  const dialogue = db.prepare('SELECT id, language FROM dialogues WHERE slug = ?').get(req.params.slug);
   if (!dialogue) return res.status(404).json({ error: 'Dialogue not found' });
 
   const result = db.transaction(() => {
@@ -98,6 +99,8 @@ dialoguesRouter.post('/:slug/read', (req, res) => {
 
     db.prepare('UPDATE user_stats SET total_xp = ?, current_level = ? WHERE id = 1').run(newTotalXp, newLevel);
     db.prepare('INSERT INTO xp_events (amount) VALUES (?)').run(READ_XP_BONUS);
+
+    creditLanguageXp(db, dialogue.language, READ_XP_BONUS);
 
     return { xp_gained: READ_XP_BONUS, leveled_up: leveledUp, current_level: newLevel };
   })();

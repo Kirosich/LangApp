@@ -4,6 +4,7 @@ import { calculateLevel } from '../xp/calculate.js';
 import { LEARNED_CONDITION_SQL } from '../db/learned.js';
 import { notifyLevelUp } from '../telegram/bot.js';
 import { shuffle } from '../utils/shuffle.js';
+import { creditLanguageXp } from '../xp/perLanguage.js';
 
 export const theoryReferenceRouter = Router();
 
@@ -133,7 +134,7 @@ theoryReferenceRouter.get('/:slug/drills', (req, res) => {
 });
 
 theoryReferenceRouter.post('/:slug/read', (req, res) => {
-  const topic = db.prepare('SELECT id FROM theory_topics WHERE slug = ?').get(req.params.slug);
+  const topic = db.prepare('SELECT id, language FROM theory_topics WHERE slug = ?').get(req.params.slug);
   if (!topic) return res.status(404).json({ error: 'Topic not found' });
 
   const result = db.transaction(() => {
@@ -157,6 +158,8 @@ theoryReferenceRouter.post('/:slug/read', (req, res) => {
 
     db.prepare('UPDATE user_stats SET total_xp = ?, current_level = ? WHERE id = 1').run(newTotalXp, newLevel);
     db.prepare('INSERT INTO xp_events (amount) VALUES (?)').run(READ_XP_BONUS);
+
+    creditLanguageXp(db, topic.language, READ_XP_BONUS);
 
     return { xp_gained: READ_XP_BONUS, leveled_up: leveledUp, current_level: newLevel };
   })();

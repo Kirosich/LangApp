@@ -3,6 +3,7 @@ import { db } from '../db/index.js';
 import { calculateLevel } from '../xp/calculate.js';
 import { notifyLevelUp } from '../telegram/bot.js';
 import { shuffle } from '../utils/shuffle.js';
+import { creditLanguageXp } from '../xp/perLanguage.js';
 
 export const readingRouter = Router();
 
@@ -96,7 +97,7 @@ readingRouter.get('/:slug', (req, res) => {
 });
 
 readingRouter.post('/:slug/read', (req, res) => {
-  const text = db.prepare('SELECT id FROM reading_texts WHERE slug = ?').get(req.params.slug);
+  const text = db.prepare('SELECT id, language FROM reading_texts WHERE slug = ?').get(req.params.slug);
   if (!text) return res.status(404).json({ error: 'Reading text not found' });
 
   const result = db.transaction(() => {
@@ -118,6 +119,8 @@ readingRouter.post('/:slug/read', (req, res) => {
 
     db.prepare('UPDATE user_stats SET total_xp = ?, current_level = ? WHERE id = 1').run(newTotalXp, newLevel);
     db.prepare('INSERT INTO xp_events (amount) VALUES (?)').run(READ_XP_BONUS);
+
+    creditLanguageXp(db, text.language, READ_XP_BONUS);
 
     return { xp_gained: READ_XP_BONUS, leveled_up: leveledUp, current_level: newLevel };
   })();

@@ -7,6 +7,7 @@ import { shuffle } from '../utils/shuffle.js';
 import { LEARNED_CONDITION_SQL } from '../db/learned.js';
 import { notifyLevelUp } from '../telegram/bot.js';
 import { LEECH_CONDITION_SQL, LEECH_ORDER_SQL } from './gamification.js';
+import { creditLanguageXp } from '../xp/perLanguage.js';
 
 export const cardsRouter = Router();
 
@@ -315,6 +316,7 @@ cardsRouter.post('/:id/review', (req, res) => {
 
   const progress = db.prepare('SELECT * FROM progress WHERE card_id = ?').get(id);
   if (!progress) return res.status(404).json({ error: 'Card not found' });
+  const { language: cardLanguage } = db.prepare('SELECT language FROM cards WHERE id = ?').get(id);
 
   try {
     qualityToGrade(quality); // validates the mapping exists; nextReview() derives it again internally
@@ -335,6 +337,14 @@ cardsRouter.post('/:id/review', (req, res) => {
     // (new in Stage A) is now the source of truth for "did I review
     // anything today", replacing the old last_reviewed-based check.
     const reviewedAlreadyToday = db.prepare(`SELECT 1 FROM review_log WHERE date(reviewed_at) = date(?) LIMIT 1`).get(now.toISOString());
+    // Per-language streak bonus is independent of the global one above --
+    // "did I review THIS language today", not "did I review anything".
+    const reviewedThisLanguageAlreadyToday = db
+      .prepare(
+        `SELECT 1 FROM review_log r JOIN cards c ON c.id = r.card_id
+         WHERE c.language = ? AND date(r.reviewed_at) = date(?) LIMIT 1`
+      )
+      .get(cardLanguage, now.toISOString());
 
     db.prepare(
       `UPDATE progress SET
@@ -362,6 +372,11 @@ cardsRouter.post('/:id/review', (req, res) => {
 
     db.prepare('UPDATE user_stats SET total_xp = ?, current_level = ? WHERE id = 1').run(newTotalXp, newLevel);
     db.prepare('INSERT INTO xp_events (amount) VALUES (?)').run(xpGained);
+
+    // Per-language tracking (additive, see user_stats_by_language in
+    // migrate.js).
+    const languageXpGained = xpForReview(quality) + (reviewedThisLanguageAlreadyToday ? 0 : STREAK_BONUS_XP);
+    creditLanguageXp(db, cardLanguage, languageXpGained);
 
     return { xpGained, leveledUp, totalXp: newTotalXp, currentLevel: newLevel };
   })();
@@ -397,6 +412,8 @@ cardsRouter.post('/:id/master', (req, res) => {
 
     db.prepare('UPDATE user_stats SET total_xp = ?, current_level = ? WHERE id = 1').run(newTotalXp, newLevel);
     db.prepare('INSERT INTO xp_events (amount) VALUES (?)').run(MASTER_XP);
+
+    creditLanguageXp(db, card.language, MASTER_XP);
 
     return { leveledUp, currentLevel: newLevel };
   })();

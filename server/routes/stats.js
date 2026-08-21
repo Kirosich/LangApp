@@ -56,7 +56,7 @@ statsRouter.get('/', (req, res) => {
   res.json({
     total_cards: totalCards,
     due_today: dueToday,
-    streak_days: computeStreak(db),
+    streak_days: computeStreak(db, language),
     by_theme: byTheme,
     total_minutes_today: sumMinutes('AND date(started_at) = ?', [today]),
     total_minutes_this_week: sumMinutes('AND date(started_at) >= ?', [weekAgo]),

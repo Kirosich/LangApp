@@ -19,25 +19,46 @@ function quest(code, title, progress, goal) {
   return { code, title, progress: Math.min(progress, goal), goal, done: progress >= goal };
 }
 
+// language omitted -> exact old behavior (mixed across both languages).
+// Passed -> every underlying query is scoped to study_sessions.language
+// (session-level metrics: cards/minutes/session-count) or cards.language
+// (word-level metric: weekTotals' words_learned, which doesn't depend on
+// session tagging at all). Sessions without a language (pre-existing
+// history, or the "Все" tab) don't count toward either language's
+// session-level quests -- same "unattributed" boundary as everywhere
+// else per-language tracking was added today.
 questsRouter.get('/', (req, res) => {
+  const { language } = req.query;
   const today = new Date().toISOString().slice(0, 10);
   const thisWeekMonday = mondayOf(today);
+  const languageClause = language ? 'AND language = ?' : '';
+  const languageParam = language ? [language] : [];
 
   const cardsToday = db
-    .prepare(`SELECT COALESCE(SUM(cards_reviewed), 0) AS c FROM study_sessions WHERE ended_at IS NOT NULL AND date(started_at) = ?`)
-    .get(today).c;
-  const minutesToday = sumMinutes('AND date(started_at) = ?', [today]);
+    .prepare(
+      `SELECT COALESCE(SUM(cards_reviewed), 0) AS c FROM study_sessions WHERE ended_at IS NOT NULL AND date(started_at) = ? ${languageClause}`
+    )
+    .get(today, ...languageParam).c;
+  const minutesToday = sumMinutes(`AND date(started_at) = ? ${languageClause}`, [today, ...languageParam]);
   const sessionsToday = db
-    .prepare(`SELECT COUNT(*) AS c FROM study_sessions WHERE ended_at IS NOT NULL AND date(started_at) = ?`)
-    .get(today).c;
+    .prepare(
+      `SELECT COUNT(*) AS c FROM study_sessions WHERE ended_at IS NOT NULL AND date(started_at) = ? ${languageClause}`
+    )
+    .get(today, ...languageParam).c;
 
-  const week = weekTotals(db, thisWeekMonday, today);
+  const week = weekTotals(db, thisWeekMonday, today, language);
   const cardsThisWeek = db
-    .prepare(`SELECT COALESCE(SUM(cards_reviewed), 0) AS c FROM study_sessions WHERE ended_at IS NOT NULL AND date(started_at) BETWEEN ? AND ?`)
-    .get(thisWeekMonday, today).c;
+    .prepare(
+      `SELECT COALESCE(SUM(cards_reviewed), 0) AS c FROM study_sessions
+       WHERE ended_at IS NOT NULL AND date(started_at) BETWEEN ? AND ? ${languageClause}`
+    )
+    .get(thisWeekMonday, today, ...languageParam).c;
   const daysActiveThisWeek = db
-    .prepare(`SELECT COUNT(DISTINCT date(started_at)) AS c FROM study_sessions WHERE ended_at IS NOT NULL AND date(started_at) BETWEEN ? AND ?`)
-    .get(thisWeekMonday, today).c;
+    .prepare(
+      `SELECT COUNT(DISTINCT date(started_at)) AS c FROM study_sessions
+       WHERE ended_at IS NOT NULL AND date(started_at) BETWEEN ? AND ? ${languageClause}`
+    )
+    .get(thisWeekMonday, today, ...languageParam).c;
 
   res.json({
     daily: [
