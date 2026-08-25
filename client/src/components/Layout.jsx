@@ -38,20 +38,18 @@ export default function Layout() {
         </button>
       </header>
 
-      <div className="shrink-0 flex gap-1.5 px-4 py-2 border-b border-neutral-800 bg-neutral-950/95">
-        {LANGUAGE_OPTIONS.map((opt) => (
-          <button
-            key={opt.value}
-            onClick={() => setLanguage(opt.value)}
-            className={`flex-1 rounded-lg px-3 py-1.5 text-sm font-medium transition-colors ${
-              language === opt.value
-                ? 'bg-indigo-600 text-white'
-                : 'bg-neutral-900 text-neutral-400 border border-neutral-800 hover:bg-neutral-800'
-            }`}
-          >
-            {opt.label}
-          </button>
-        ))}
+      <div className="shrink-0 px-4 py-2 border-b border-neutral-800 bg-neutral-950/95">
+        <select
+          value={language}
+          onChange={(e) => setLanguage(e.target.value)}
+          className="w-full rounded-lg px-3 py-1.5 text-sm font-medium bg-neutral-900 text-white border border-neutral-800"
+        >
+          {LANGUAGE_OPTIONS.map((opt) => (
+            <option key={opt.value} value={opt.value}>
+              {opt.label}
+            </option>
+          ))}
+        </select>
       </div>
 
       {!online && (
