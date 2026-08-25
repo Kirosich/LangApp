@@ -83,16 +83,15 @@ function buildTypingQuestions(cards) {
   }));
 }
 
-// "Собери предложение": only cards with a real example sentence, and
-// never from the backlog (status='active' covers both in-progress and
-// mastered cards, since mastering doesn't change status -- see
-// cardsRouter POST /:id/master).
+// "Собери предложение": only cards with a real example sentence, never
+// from the backlog, and never mastered ("уже знаю" cards are excluded
+// from all quizzes -- see cardsRouter POST /:id/master).
 function selectSentenceCards({ theme, language, count }) {
   const { clause, params } = buildFilterClause(theme, language);
   return db
     .prepare(
       `SELECT c.* FROM cards c
-       WHERE c.status = 'active' AND c.example_sentence IS NOT NULL
+       WHERE c.status = 'active' AND c.mastered_at IS NULL AND c.example_sentence IS NOT NULL
          AND instr(trim(c.example_sentence), ' ') > 0 ${clause}
        ORDER BY RANDOM() LIMIT ?`
     )
