@@ -130,7 +130,10 @@ theoryReferenceRouter.get('/:slug/drills', (req, res) => {
     explanation: row.explanation
   }));
 
-  res.json({ slug: req.params.slug, drills });
+  // Drill order (not just each drill's options) is shuffled too -- with
+  // more drills per topic now, always starting from position 0 would
+  // make every attempt front-load the same few questions.
+  res.json({ slug: req.params.slug, drills: shuffle(drills) });
 });
 
 theoryReferenceRouter.post('/:slug/read', (req, res) => {

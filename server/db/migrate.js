@@ -370,6 +370,32 @@ function ensureSessionTypeAllowsProficiencyTest(db) {
   `);
 }
 
+// Reading a reference-topic page and going through a dialogue previously
+// tracked no time at all (no session_type covered either). Added
+// together since both are "just open the screen and read/listen"
+// activities with no natural start/end signal besides page mount/unmount.
+function ensureSessionTypeAllowsTheoryReadAndDialogue(db) {
+  const row = db.prepare(`SELECT sql FROM sqlite_master WHERE type = 'table' AND name = 'study_sessions'`).get();
+  if (!row || row.sql.includes("'theory_read'")) return;
+
+  db.exec(`
+    ALTER TABLE study_sessions RENAME TO study_sessions_old;
+    CREATE TABLE study_sessions (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      session_type TEXT NOT NULL CHECK (session_type IN ('study', 'quiz_choice', 'quiz_typing', 'quiz_matching', 'quiz_sentence', 'theory_drill', 'quiz_listening', 'level_exam', 'reading', 'media_exam', 'proficiency_test', 'theory_read', 'dialogue')),
+      started_at TEXT NOT NULL DEFAULT (datetime('now')),
+      ended_at TEXT,
+      cards_reviewed INTEGER NOT NULL DEFAULT 0,
+      correct_count INTEGER,
+      language TEXT
+    );
+    INSERT INTO study_sessions (id, session_type, started_at, ended_at, cards_reviewed, correct_count, language)
+      SELECT id, session_type, started_at, ended_at, cards_reviewed, correct_count, language FROM study_sessions_old;
+    DROP TABLE study_sessions_old;
+    CREATE INDEX IF NOT EXISTS idx_sessions_started_at ON study_sessions(started_at);
+  `);
+}
+
 // Widens badges from UNIQUE(code) to UNIQUE(code, language) -- most
 // badges (streak_7, streak_30, words_100, words_250, perfect_quiz) can
 // now be earned once per language; a few (night_owl, marathon_30min --
@@ -656,6 +682,7 @@ export function runMigrations(db) {
     `);
 
     ensureBadgesAllowPerLanguage(db);
+    ensureSessionTypeAllowsTheoryReadAndDialogue(db);
   });
   migrate();
 }

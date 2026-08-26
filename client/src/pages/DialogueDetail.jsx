@@ -2,13 +2,13 @@ import { useEffect, useState } from 'react';
 import { Link, useParams } from 'react-router-dom';
 import { api } from '../api/client';
 import { celebrateLevelUp } from '../utils/confetti';
+import { useStudySession } from '../hooks/useStudySession';
 import SpeakButton from '../components/SpeakButton';
 
 export default function DialogueDetail() {
   const { slug } = useParams();
   const [dialogue, setDialogue] = useState(null);
   const [error, setError] = useState('');
-  const [marking, setMarking] = useState(false);
 
   function load() {
     api.getDialogue(slug).then(setDialogue).catch((e) => setError(e.message));
@@ -16,21 +16,32 @@ export default function DialogueDetail() {
 
   useEffect(load, [slug]);
 
+  if (error) return <div className="p-4 text-red-400">{error}</div>;
+  if (!dialogue) return <div className="p-4 text-neutral-400">Загрузка…</div>;
+
+  // Split out so useStudySession only mounts once `dialogue` (and its
+  // language) is known -- same pattern as ReadingDetailBody.
+  return <DialogueDetailBody key={slug} slug={slug} dialogue={dialogue} onReload={load} />;
+}
+
+function DialogueDetailBody({ slug, dialogue, onReload }) {
+  const [error, setError] = useState('');
+  const [marking, setMarking] = useState(false);
+
+  useStudySession('dialogue', dialogue.language);
+
   async function markRead() {
     setMarking(true);
     try {
       const result = await api.markDialogueRead(slug);
       if (result.leveled_up) celebrateLevelUp();
-      load();
+      onReload();
     } catch (e) {
       setError(e.message);
     } finally {
       setMarking(false);
     }
   }
-
-  if (error) return <div className="p-4 text-red-400">{error}</div>;
-  if (!dialogue) return <div className="p-4 text-neutral-400">Загрузка…</div>;
 
   return (
     <div className="p-4 max-w-lg mx-auto space-y-4">
@@ -47,6 +58,8 @@ export default function DialogueDetail() {
         </div>
         <h1 className="text-xl font-semibold">{dialogue.title}</h1>
       </div>
+
+      {error && <p className="text-sm text-red-400">{error}</p>}
 
       <div className="space-y-2">
         {dialogue.lines.map((line, i) => (

@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react';
 import { Link, useParams } from 'react-router-dom';
 import { api } from '../api/client';
 import { celebrateLevelUp } from '../utils/confetti';
+import { useStudySession } from '../hooks/useStudySession';
 import TheoryDrillRound from '../components/theory/TheoryDrillRound';
 
 const SECTION_LABEL = {
@@ -15,8 +16,6 @@ export default function TheoryTopic() {
   const { slug } = useParams();
   const [topic, setTopic] = useState(null);
   const [error, setError] = useState('');
-  const [marking, setMarking] = useState(false);
-  const [drillMode, setDrillMode] = useState(false);
 
   function load() {
     api.getTheoryTopic(slug).then(setTopic).catch((e) => setError(e.message));
@@ -24,21 +23,33 @@ export default function TheoryTopic() {
 
   useEffect(load, [slug]);
 
+  if (error) return <div className="p-4 text-red-400">{error}</div>;
+  if (!topic) return <div className="p-4 text-neutral-400">Загрузка…</div>;
+
+  // Split out so useStudySession only mounts once `topic` (and its
+  // language) is known -- same pattern as ReadingDetailBody.
+  return <TheoryTopicBody key={slug} slug={slug} topic={topic} onReload={load} />;
+}
+
+function TheoryTopicBody({ slug, topic, onReload }) {
+  const [error, setError] = useState('');
+  const [marking, setMarking] = useState(false);
+  const [drillMode, setDrillMode] = useState(false);
+
+  useStudySession('theory_read', topic.language);
+
   async function markRead() {
     setMarking(true);
     try {
       const result = await api.markTheoryTopicRead(slug);
       if (result.leveled_up) celebrateLevelUp();
-      load();
+      onReload();
     } catch (e) {
       setError(e.message);
     } finally {
       setMarking(false);
     }
   }
-
-  if (error) return <div className="p-4 text-red-400">{error}</div>;
-  if (!topic) return <div className="p-4 text-neutral-400">Загрузка…</div>;
 
   return (
     <div className="p-4 max-w-lg mx-auto space-y-4">
@@ -56,6 +67,8 @@ export default function TheoryTopic() {
         <h1 className="text-xl font-semibold">{topic.title}</h1>
         <p className="text-sm text-neutral-500 mt-1">{topic.summary}</p>
       </div>
+
+      {error && <p className="text-sm text-red-400">{error}</p>}
 
       {drillMode ? (
         <TheoryDrillRound slug={slug} onExit={() => setDrillMode(false)} />
