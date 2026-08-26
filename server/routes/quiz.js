@@ -20,13 +20,16 @@ function buildFilterClause(theme, language, alias = 'c') {
   return { clause: conditions.length ? `AND ${conditions.join(' AND ')}` : '', params };
 }
 
-function selectQuizCards({ theme, language, count, includeMastered }) {
+function selectQuizCards({ theme, language, count, includeMastered, includeBacklog }) {
   // fsrs_due NULL means "never reviewed since the FSRS switch (Stage D)"
   // -- stays immediately reviewable, same as due_date used to default
-  // to today.
+  // to today. Backlog cards never have a progress row (see
+  // backlog/introduce.js), so this query only ever matches active cards
+  // regardless of includeBacklog -- that flag only widens the filler pool.
   const now = new Date().toISOString();
   const { clause, params } = buildFilterClause(theme, language);
   const masteredClause = includeMastered ? '' : 'AND c.mastered_at IS NULL';
+  const statusClause = includeBacklog ? "c.status IN ('active', 'backlog')" : "c.status = 'active'";
 
   const due = db
     .prepare(
@@ -36,21 +39,27 @@ function selectQuizCards({ theme, language, count, includeMastered }) {
     )
     .all(now, ...params, now, count);
 
-  if (due.length >= count) return due;
+  let cards = due;
+  if (due.length < count) {
+    const excludeIds = due.map((c) => c.id);
+    const placeholders = excludeIds.length ? excludeIds.map(() => '?').join(',') : null;
+    const excludeClause = placeholders ? `AND c.id NOT IN (${placeholders})` : '';
 
-  const excludeIds = due.map((c) => c.id);
-  const placeholders = excludeIds.length ? excludeIds.map(() => '?').join(',') : null;
-  const excludeClause = placeholders ? `AND c.id NOT IN (${placeholders})` : '';
+    const filler = db
+      .prepare(
+        `SELECT c.* FROM cards c
+         WHERE ${statusClause} ${masteredClause} ${clause} ${excludeClause}
+         ORDER BY RANDOM() LIMIT ?`
+      )
+      .all(...params, ...excludeIds, count - due.length);
 
-  const filler = db
-    .prepare(
-      `SELECT c.* FROM cards c
-       WHERE c.status = 'active' ${masteredClause} ${clause} ${excludeClause}
-       ORDER BY RANDOM() LIMIT ?`
-    )
-    .all(...params, ...excludeIds, count - due.length);
+    cards = [...due, ...filler];
+  }
 
-  return [...due, ...filler];
+  // Quiz sessions don't touch FSRS scheduling, so the "due" portion above
+  // would otherwise come back in the exact same fsrs_due order every time
+  // -- shuffle so repeat quizzes actually feel different.
+  return shuffle(cards);
 }
 
 function buildChoiceQuestions(cards) {
@@ -84,17 +93,18 @@ function buildTypingQuestions(cards) {
   }));
 }
 
-// "Собери предложение": only cards with a real example sentence, never
-// from the backlog, and (unless includeMastered) never mastered --
-// "уже знаю" cards are excluded from all quizzes by default, see
-// cardsRouter POST /:id/master.
-function selectSentenceCards({ theme, language, count, includeMastered }) {
+// "Собери предложение": only cards with a real example sentence; backlog
+// cards are included only if includeBacklog is set, and (unless
+// includeMastered) mastered ("уже знаю") cards are excluded by default,
+// see cardsRouter POST /:id/master.
+function selectSentenceCards({ theme, language, count, includeMastered, includeBacklog }) {
   const { clause, params } = buildFilterClause(theme, language);
   const masteredClause = includeMastered ? '' : 'AND c.mastered_at IS NULL';
+  const statusClause = includeBacklog ? "c.status IN ('active', 'backlog')" : "c.status = 'active'";
   return db
     .prepare(
       `SELECT c.* FROM cards c
-       WHERE c.status = 'active' ${masteredClause} AND c.example_sentence IS NOT NULL
+       WHERE ${statusClause} ${masteredClause} AND c.example_sentence IS NOT NULL
          AND instr(trim(c.example_sentence), ' ') > 0 ${clause}
        ORDER BY RANDOM() LIMIT ?`
     )
@@ -141,17 +151,18 @@ quizRouter.get('/', (req, res) => {
   const { type = 'choice', theme, language } = req.query;
   const count = Math.min(Math.max(parseInt(req.query.count, 10) || 10, 1), 50);
   const includeMastered = req.query.includeMastered === 'true' || req.query.includeMastered === '1';
+  const includeBacklog = req.query.includeBacklog === 'true' || req.query.includeBacklog === '1';
 
   if (!VALID_TYPES.has(type)) {
     return res.status(400).json({ error: `type must be one of: ${[...VALID_TYPES].join(', ')}` });
   }
 
   if (type === 'sentence') {
-    const sentenceCards = selectSentenceCards({ theme, language, count, includeMastered });
+    const sentenceCards = selectSentenceCards({ theme, language, count, includeMastered, includeBacklog });
     return res.json({ type, questions: buildSentenceQuestions(sentenceCards) });
   }
 
-  const cards = selectQuizCards({ theme, language, count, includeMastered });
+  const cards = selectQuizCards({ theme, language, count, includeMastered, includeBacklog });
 
   if (cards.length === 0) {
     return res.json({ type, questions: [] });

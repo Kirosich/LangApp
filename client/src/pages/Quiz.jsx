@@ -35,6 +35,7 @@ export default function Quiz() {
   const [theme, setTheme] = useState('');
   const [count, setCount] = useState(10);
   const [includeMastered, setIncludeMastered] = useState(false);
+  const [includeBacklog, setIncludeBacklog] = useState(false);
   const [quizData, setQuizData] = useState(null);
   const [result, setResult] = useState(null);
   const [error, setError] = useState('');
@@ -74,7 +75,14 @@ export default function Quiz() {
     setLoading(true);
     setError('');
     try {
-      const data = await api.getQuiz({ type, theme, language, count, includeMastered: includeMastered ? 'true' : '' });
+      const data = await api.getQuiz({
+        type,
+        theme,
+        language,
+        count,
+        includeMastered: includeMastered ? 'true' : '',
+        includeBacklog: includeBacklog ? 'true' : ''
+      });
       setQuizData(data);
       setStage('playing');
 
@@ -233,6 +241,16 @@ export default function Quiz() {
             className="rounded border-neutral-700 bg-neutral-900"
           />
           Включать слова, отмеченные «уже знаю»
+        </label>
+
+        <label className="flex items-center gap-2 text-sm text-neutral-400">
+          <input
+            type="checkbox"
+            checked={includeBacklog}
+            onChange={(e) => setIncludeBacklog(e.target.checked)}
+            className="rounded border-neutral-700 bg-neutral-900"
+          />
+          Включать карточки со склада (ещё не введены в SRS)
         </label>
 
         {error && <p className="text-sm text-red-400">{error}</p>}
