@@ -20,17 +20,18 @@ function buildFilterClause(theme, language, alias = 'c') {
   return { clause: conditions.length ? `AND ${conditions.join(' AND ')}` : '', params };
 }
 
-function selectQuizCards({ theme, language, count }) {
+function selectQuizCards({ theme, language, count, includeMastered }) {
   // fsrs_due NULL means "never reviewed since the FSRS switch (Stage D)"
   // -- stays immediately reviewable, same as due_date used to default
   // to today.
   const now = new Date().toISOString();
   const { clause, params } = buildFilterClause(theme, language);
+  const masteredClause = includeMastered ? '' : 'AND c.mastered_at IS NULL';
 
   const due = db
     .prepare(
       `SELECT c.* FROM cards c JOIN progress p ON p.card_id = c.id
-       WHERE (p.fsrs_due IS NULL OR p.fsrs_due <= ?) AND c.mastered_at IS NULL ${clause}
+       WHERE (p.fsrs_due IS NULL OR p.fsrs_due <= ?) ${masteredClause} ${clause}
        ORDER BY COALESCE(p.fsrs_due, ?) ASC LIMIT ?`
     )
     .all(now, ...params, now, count);
@@ -44,7 +45,7 @@ function selectQuizCards({ theme, language, count }) {
   const filler = db
     .prepare(
       `SELECT c.* FROM cards c
-       WHERE c.status = 'active' AND c.mastered_at IS NULL ${clause} ${excludeClause}
+       WHERE c.status = 'active' ${masteredClause} ${clause} ${excludeClause}
        ORDER BY RANDOM() LIMIT ?`
     )
     .all(...params, ...excludeIds, count - due.length);
@@ -84,14 +85,16 @@ function buildTypingQuestions(cards) {
 }
 
 // "Собери предложение": only cards with a real example sentence, never
-// from the backlog, and never mastered ("уже знаю" cards are excluded
-// from all quizzes -- see cardsRouter POST /:id/master).
-function selectSentenceCards({ theme, language, count }) {
+// from the backlog, and (unless includeMastered) never mastered --
+// "уже знаю" cards are excluded from all quizzes by default, see
+// cardsRouter POST /:id/master.
+function selectSentenceCards({ theme, language, count, includeMastered }) {
   const { clause, params } = buildFilterClause(theme, language);
+  const masteredClause = includeMastered ? '' : 'AND c.mastered_at IS NULL';
   return db
     .prepare(
       `SELECT c.* FROM cards c
-       WHERE c.status = 'active' AND c.mastered_at IS NULL AND c.example_sentence IS NOT NULL
+       WHERE c.status = 'active' ${masteredClause} AND c.example_sentence IS NOT NULL
          AND instr(trim(c.example_sentence), ' ') > 0 ${clause}
        ORDER BY RANDOM() LIMIT ?`
     )
@@ -137,17 +140,18 @@ function buildMatchingRounds(cards) {
 quizRouter.get('/', (req, res) => {
   const { type = 'choice', theme, language } = req.query;
   const count = Math.min(Math.max(parseInt(req.query.count, 10) || 10, 1), 50);
+  const includeMastered = req.query.includeMastered === 'true' || req.query.includeMastered === '1';
 
   if (!VALID_TYPES.has(type)) {
     return res.status(400).json({ error: `type must be one of: ${[...VALID_TYPES].join(', ')}` });
   }
 
   if (type === 'sentence') {
-    const sentenceCards = selectSentenceCards({ theme, language, count });
+    const sentenceCards = selectSentenceCards({ theme, language, count, includeMastered });
     return res.json({ type, questions: buildSentenceQuestions(sentenceCards) });
   }
 
-  const cards = selectQuizCards({ theme, language, count });
+  const cards = selectQuizCards({ theme, language, count, includeMastered });
 
   if (cards.length === 0) {
     return res.json({ type, questions: [] });

@@ -34,6 +34,7 @@ export default function Quiz() {
   const [type, setType] = useState(searchParams.get('type') || 'choice');
   const [theme, setTheme] = useState('');
   const [count, setCount] = useState(10);
+  const [includeMastered, setIncludeMastered] = useState(false);
   const [quizData, setQuizData] = useState(null);
   const [result, setResult] = useState(null);
   const [error, setError] = useState('');
@@ -73,7 +74,7 @@ export default function Quiz() {
     setLoading(true);
     setError('');
     try {
-      const data = await api.getQuiz({ type, theme, language, count });
+      const data = await api.getQuiz({ type, theme, language, count, includeMastered: includeMastered ? 'true' : '' });
       setQuizData(data);
       setStage('playing');
 
@@ -223,6 +224,16 @@ export default function Quiz() {
             className="w-full rounded-lg bg-neutral-900 border border-neutral-800 px-3 py-2"
           />
         </div>
+
+        <label className="flex items-center gap-2 text-sm text-neutral-400">
+          <input
+            type="checkbox"
+            checked={includeMastered}
+            onChange={(e) => setIncludeMastered(e.target.checked)}
+            className="rounded border-neutral-700 bg-neutral-900"
+          />
+          Включать слова, отмеченные «уже знаю»
+        </label>
 
         {error && <p className="text-sm text-red-400">{error}</p>}
 
