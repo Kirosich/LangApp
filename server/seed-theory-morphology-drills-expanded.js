@@ -173,10 +173,10 @@ function possTable(w) {
   const vowelEnding = w.bucket === 'vowel';
   const stem1 = vowelEnding ? w.word : stemForVowelSuffix(w);
   const suf1 = vowelEnding ? 'м' : w.harmony === 'back' ? 'ым' : 'ім';
-  const suf2 = w.harmony === 'back' ? 'ың' : 'ің'; // 2sg informal, same vowel-init rule
+  const suf2 = vowelEnding ? 'ң' : w.harmony === 'back' ? 'ың' : 'ің'; // 2sg informal -- bare -ң after a vowel-final stem, -ың/-ің after consonant
   const suf3 = vowelEnding ? 'сы' : w.harmony === 'back' ? 'ы' : 'і'; // 3rd: -сы after vowel, -ы/-і after consonant
   const stem3 = vowelEnding ? w.word : stemForVowelSuffix(w);
-  const sufPl = w.harmony === 'back' ? 'ымыз' : 'іміз';
+  const sufPl = vowelEnding ? (w.harmony === 'back' ? 'мыз' : 'міз') : w.harmony === 'back' ? 'ымыз' : 'іміз'; // bare -мыз/-міз after a vowel-final stem
   return {
     p1sg: stem1 + suf1,
     p2sg: stem1 + suf2,

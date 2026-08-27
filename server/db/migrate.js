@@ -683,6 +683,26 @@ export function runMigrations(db) {
 
     ensureBadgesAllowPerLanguage(db);
     ensureSessionTypeAllowsTheoryReadAndDialogue(db);
+
+    // "Table" exercises (Stage: full declension/conjugation tables) --
+    // independent of theory_topics granularity on purpose: a case-table
+    // exercise should show all 7 cases at once, not just the one case
+    // the current theory_topics row happens to be about. paradigm_type
+    // is a free string ('cases', 'personal', 'possessive', 'tenses',
+    // 'participles', ...), not a FK, so new types don't need a schema
+    // change. cells is a JSON array of {label, answer}.
+    db.exec(`
+      CREATE TABLE IF NOT EXISTS theory_paradigms (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        language TEXT NOT NULL CHECK (language IN ('kz', 'en')),
+        paradigm_type TEXT NOT NULL,
+        word TEXT NOT NULL,
+        gloss TEXT NOT NULL,
+        cells TEXT NOT NULL,
+        created_at TEXT NOT NULL DEFAULT (datetime('now'))
+      );
+      CREATE INDEX IF NOT EXISTS idx_theory_paradigms_lookup ON theory_paradigms(language, paradigm_type);
+    `);
   });
   migrate();
 }

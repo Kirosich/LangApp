@@ -68,6 +68,39 @@ theoryReferenceRouter.get('/theme-links', (req, res) => {
   res.json(rows);
 });
 
+// "Таблица" exercise (склонение/спряжение): fill every cell of a full
+// paradigm, then check all at once client-side -- same "send the
+// answer straight to the client" approach as quiz.js (single-user app,
+// no anti-cheat concern).
+const PARADIGM_LABELS = {
+  cases: 'Падежи (септік)',
+  personal: 'Личные окончания (жіктік)',
+  possessive: 'Притяжательные окончания (тәуелдік)',
+  tenses: 'Времена глагола',
+  participles: 'Причастие, деепричастие и наклонения'
+};
+
+theoryReferenceRouter.get('/paradigms/types', (req, res) => {
+  const { language } = req.query;
+  const rows = db
+    .prepare(`SELECT DISTINCT paradigm_type FROM theory_paradigms WHERE language = ? ORDER BY paradigm_type`)
+    .all(language || 'kz');
+  res.json(rows.map((r) => ({ type: r.paradigm_type, label: PARADIGM_LABELS[r.paradigm_type] || r.paradigm_type })));
+});
+
+theoryReferenceRouter.get('/paradigms/random', (req, res) => {
+  const { language, type } = req.query;
+  if (!type) return res.status(400).json({ error: 'type is required' });
+
+  const row = db
+    .prepare(`SELECT id, word, gloss, cells FROM theory_paradigms WHERE language = ? AND paradigm_type = ? ORDER BY RANDOM() LIMIT 1`)
+    .get(language || 'kz', type);
+
+  if (!row) return res.status(404).json({ error: 'No paradigm found for this type/language' });
+
+  res.json({ id: row.id, word: row.word, gloss: row.gloss, cells: JSON.parse(row.cells) });
+});
+
 theoryReferenceRouter.get('/:slug', (req, res) => {
   const topic = db
     .prepare(

@@ -11,7 +11,7 @@ const LANGUAGE_OPTIONS = [
 const NAV_ITEMS = [
   { to: '/', label: 'Дашборд', icon: '🏠', end: true },
   { to: '/study', label: 'Учить', icon: '📚' },
-  { to: '/quiz', label: 'Квиз', icon: '🎯' },
+  { to: '/quiz', label: 'Упражнения', icon: '🎯' },
   { to: '/browse', label: 'Карточки', icon: '🗂️' },
   { to: '/theory', label: 'Теория', icon: '📖' },
   { to: '/media', label: 'Фильмы', icon: '🎬' },

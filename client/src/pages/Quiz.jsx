@@ -7,6 +7,7 @@ import TypingQuiz from '../components/quiz/TypingQuiz';
 import MatchingQuiz from '../components/quiz/MatchingQuiz';
 import SentenceQuiz from '../components/quiz/SentenceQuiz';
 import ListeningQuiz from '../components/quiz/ListeningQuiz';
+import ParadigmTable from '../components/quiz/ParadigmTable';
 import { celebrateBadge } from '../utils/confetti';
 
 const TYPE_OPTIONS = [
@@ -14,7 +15,8 @@ const TYPE_OPTIONS = [
   { value: 'typing', label: 'Ввод с клавиатуры' },
   { value: 'matching', label: 'Сопоставление пар' },
   { value: 'sentence', label: 'Собери предложение' },
-  { value: 'listening', label: 'Аудирование (на слух)' }
+  { value: 'listening', label: 'Аудирование (на слух)' },
+  { value: 'table', label: 'Таблица (склонение/спряжение)' }
 ];
 
 const SESSION_TYPE_FOR_QUIZ = {
@@ -22,7 +24,8 @@ const SESSION_TYPE_FOR_QUIZ = {
   typing: 'quiz_typing',
   matching: 'quiz_matching',
   sentence: 'quiz_sentence',
-  listening: 'quiz_listening'
+  listening: 'quiz_listening',
+  table: 'theory_drill'
 };
 
 export default function Quiz() {
@@ -36,6 +39,8 @@ export default function Quiz() {
   const [count, setCount] = useState(10);
   const [includeMastered, setIncludeMastered] = useState(false);
   const [includeBacklog, setIncludeBacklog] = useState(false);
+  const [paradigmTypes, setParadigmTypes] = useState([]);
+  const [paradigmType, setParadigmType] = useState('');
   const [quizData, setQuizData] = useState(null);
   const [result, setResult] = useState(null);
   const [error, setError] = useState('');
@@ -49,6 +54,16 @@ export default function Quiz() {
   useEffect(() => {
     setTheme('');
     api.getStats({ language }).then((s) => setThemes(s.by_theme.map((t) => t.theme))).catch(() => {});
+  }, [language]);
+
+  useEffect(() => {
+    api
+      .getParadigmTypes(language)
+      .then((types) => {
+        setParadigmTypes(types);
+        setParadigmType((prev) => (types.some((t) => t.type === prev) ? prev : types[0]?.type || ''));
+      })
+      .catch(() => {});
   }, [language]);
 
   function endActiveSession() {
@@ -75,14 +90,17 @@ export default function Quiz() {
     setLoading(true);
     setError('');
     try {
-      const data = await api.getQuiz({
-        type,
-        theme,
-        language,
-        count,
-        includeMastered: includeMastered ? 'true' : '',
-        includeBacklog: includeBacklog ? 'true' : ''
-      });
+      const data =
+        type === 'table'
+          ? { type: 'table', paradigmType }
+          : await api.getQuiz({
+              type,
+              theme,
+              language,
+              count,
+              includeMastered: includeMastered ? 'true' : '',
+              includeBacklog: includeBacklog ? 'true' : ''
+            });
       setQuizData(data);
       setStage('playing');
 
@@ -173,6 +191,13 @@ export default function Quiz() {
         </div>
       );
     }
+    if (quizData.type === 'table') {
+      return (
+        <div className="p-4 max-w-lg mx-auto">
+          <ParadigmTable language={language} paradigmType={quizData.paradigmType} onFinish={finish} onProgress={progress} />
+        </div>
+      );
+    }
     return (
       <div className="p-4 max-w-lg mx-auto text-center mt-16">
         <div className="text-neutral-400 mb-4">Недостаточно карточек для этого квиза.</div>
@@ -185,7 +210,7 @@ export default function Quiz() {
 
   return (
     <div className="p-4 max-w-lg mx-auto">
-      <h1 className="text-lg font-semibold mb-4">Настройки квиза</h1>
+      <h1 className="text-lg font-semibold mb-4">Настройки упражнения</h1>
       <form onSubmit={start} className="space-y-4">
         <div>
           <label className="block text-sm text-neutral-400 mb-1">Тип</label>
@@ -205,62 +230,82 @@ export default function Quiz() {
           </div>
         </div>
 
-        <div>
-          <label className="block text-sm text-neutral-400 mb-1">Тема</label>
-          <select
-            value={theme}
-            onChange={(e) => setTheme(e.target.value)}
-            className="w-full rounded-lg bg-neutral-900 border border-neutral-800 px-3 py-2"
-          >
-            <option value="">Все темы</option>
-            {themes.map((t) => (
-              <option key={t} value={t}>
-                {t}
-              </option>
-            ))}
-          </select>
-        </div>
+        {type === 'table' ? (
+          <div>
+            <label className="block text-sm text-neutral-400 mb-1">Тип таблицы</label>
+            <select
+              value={paradigmType}
+              onChange={(e) => setParadigmType(e.target.value)}
+              className="w-full rounded-lg bg-neutral-900 border border-neutral-800 px-3 py-2"
+            >
+              {paradigmTypes.length === 0 && <option value="">Нет таблиц для этого языка</option>}
+              {paradigmTypes.map((t) => (
+                <option key={t.type} value={t.type}>
+                  {t.label}
+                </option>
+              ))}
+            </select>
+          </div>
+        ) : (
+          <>
+            <div>
+              <label className="block text-sm text-neutral-400 mb-1">Тема</label>
+              <select
+                value={theme}
+                onChange={(e) => setTheme(e.target.value)}
+                className="w-full rounded-lg bg-neutral-900 border border-neutral-800 px-3 py-2"
+              >
+                <option value="">Все темы</option>
+                {themes.map((t) => (
+                  <option key={t} value={t}>
+                    {t}
+                  </option>
+                ))}
+              </select>
+            </div>
 
-        <div>
-          <label className="block text-sm text-neutral-400 mb-1">Количество вопросов</label>
-          <input
-            type="number"
-            min={1}
-            max={50}
-            value={count}
-            onChange={(e) => setCount(e.target.value)}
-            className="w-full rounded-lg bg-neutral-900 border border-neutral-800 px-3 py-2"
-          />
-        </div>
+            <div>
+              <label className="block text-sm text-neutral-400 mb-1">Количество вопросов</label>
+              <input
+                type="number"
+                min={1}
+                max={50}
+                value={count}
+                onChange={(e) => setCount(e.target.value)}
+                className="w-full rounded-lg bg-neutral-900 border border-neutral-800 px-3 py-2"
+              />
+            </div>
 
-        <label className="flex items-center gap-2 text-sm text-neutral-400">
-          <input
-            type="checkbox"
-            checked={includeMastered}
-            onChange={(e) => setIncludeMastered(e.target.checked)}
-            className="rounded border-neutral-700 bg-neutral-900"
-          />
-          Включать слова, отмеченные «уже знаю»
-        </label>
+            <label className="flex items-center gap-2 text-sm text-neutral-400">
+              <input
+                type="checkbox"
+                checked={includeMastered}
+                onChange={(e) => setIncludeMastered(e.target.checked)}
+                className="rounded border-neutral-700 bg-neutral-900"
+              />
+              Включать слова, отмеченные «уже знаю»
+            </label>
 
-        <label className="flex items-center gap-2 text-sm text-neutral-400">
-          <input
-            type="checkbox"
-            checked={includeBacklog}
-            onChange={(e) => setIncludeBacklog(e.target.checked)}
-            className="rounded border-neutral-700 bg-neutral-900"
-          />
-          Включать карточки со склада (ещё не введены в SRS)
-        </label>
+            <label className="flex items-center gap-2 text-sm text-neutral-400">
+              <input
+                type="checkbox"
+                checked={includeBacklog}
+                onChange={(e) => setIncludeBacklog(e.target.checked)}
+                className="rounded border-neutral-700 bg-neutral-900"
+              />
+              Включать карточки со склада (ещё не введены в SRS)
+            </label>
+          </>
+        )}
 
         {error && <p className="text-sm text-red-400">{error}</p>}
 
         <button
           type="submit"
-          disabled={loading}
+          disabled={loading || (type === 'table' && !paradigmType)}
           className="w-full rounded-xl bg-indigo-600 hover:bg-indigo-500 disabled:opacity-50 py-3 font-medium"
         >
-          {loading ? 'Загрузка…' : 'Начать квиз'}
+          {loading ? 'Загрузка…' : 'Начать'}
         </button>
       </form>
     </div>

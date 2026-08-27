@@ -118,7 +118,7 @@ export default function Dashboard() {
 
       <div className="grid grid-cols-2 gap-3">
         <ActionButton to="/study" label="Учить" icon="📚" />
-        <ActionButton to="/quiz" label="Квиз" icon="🎯" />
+        <ActionButton to="/quiz" label="Упражнения" icon="🎯" />
         <ActionButton to="/cards/new" label="Добавить карточку" icon="➕" />
         <ActionButton to="/browse" label="Все карточки" icon="🗂️" />
         <ActionButton to="/study?practice=100" label="Тренировка · 100 слов" icon="🔁" className="col-span-2" />
