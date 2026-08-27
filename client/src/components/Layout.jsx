@@ -12,10 +12,8 @@ const NAV_ITEMS = [
   { to: '/', label: 'Дашборд', icon: '🏠', end: true },
   { to: '/study', label: 'Учить', icon: '📚' },
   { to: '/quiz', label: 'Упражнения', icon: '🎯' },
-  { to: '/browse', label: 'Карточки', icon: '🗂️' },
   { to: '/theory', label: 'Теория', icon: '📖' },
-  { to: '/media', label: 'Фильмы', icon: '🎬' },
-  { to: '/known', label: 'Знания', icon: '🏅' }
+  { to: '/more', label: 'Ещё', icon: '⋯' }
 ];
 
 function navLinkClass({ isActive }) {

@@ -20,6 +20,7 @@ import ProficiencyTestList from './pages/ProficiencyTestList';
 import ProficiencyTestRound from './pages/ProficiencyTestRound';
 import Settings from './pages/Settings';
 import KnownWords from './pages/KnownWords';
+import More from './pages/More';
 
 function ProtectedRoute({ children }) {
   const { authed } = useAuth();
@@ -57,6 +58,7 @@ function AppRoutes() {
         <Route path="proficiency-test/:id" element={<ProficiencyTestRound />} />
         <Route path="settings" element={<Settings />} />
         <Route path="known" element={<KnownWords />} />
+        <Route path="more" element={<More />} />
       </Route>
       <Route path="*" element={<Navigate to="/" replace />} />
     </Routes>
