@@ -181,7 +181,6 @@ function komektes(w) {
 }
 
 const CASES = [
-  { slug: 'kz-case-atau', build: null }, // handled separately below (no suffix, just recognition)
   { slug: 'kz-case-ilik', build: ilik },
   { slug: 'kz-case-barys', build: barys },
   { slug: 'kz-case-tabys', build: tabys },
@@ -190,27 +189,11 @@ const CASES = [
   { slug: 'kz-case-komektes', build: komektes }
 ];
 
-function atauDrills() {
-  // Атау септік has no suffix -- the drill is "recognize the bare form
-  // among case-marked distractors of the same word", same pattern as
-  // the 5 existing atau drills.
-  const CASE_SUFFIXES_FOR_DISTRACTORS = [
-    (w) => ilik(w).correct_answer,
-    (w) => barys(w).correct_answer,
-    (w) => tabys(w).correct_answer,
-    (w) => jatys(w).correct_answer,
-    (w) => shygys(w).correct_answer
-  ];
-  return WORDS.map((w, i) => {
-    const picks = [0, 1, 2].map((k) => CASE_SUFFIXES_FOR_DISTRACTORS[(i + k) % CASE_SUFFIXES_FOR_DISTRACTORS.length](w));
-    return {
-      prompt: `Выбери атау септік (именительный, без суффикса) слова «${w.word}» (${w.gloss}).`,
-      correct_answer: w.word,
-      distractors: picks,
-      explanation: `«${w.word}» без суффикса — атау септік, база слова. Остальные варианты — уже с падежными окончаниями.`
-    };
-  });
-}
+// kz-case-atau (nominative) deliberately excluded from CASES above: no
+// suffix, nothing to actually drill (user correctly pointed out the
+// "recognize the bare form" quiz was testing a non-skill). All 54
+// drills for that topic (original 5 + generated 49) were removed from
+// the live DB.
 
 function seed() {
   const topicIdStmt = db.prepare('SELECT id FROM theory_topics WHERE slug = ?');
@@ -236,7 +219,7 @@ function seed() {
         console.log(`Already expanded, skipping: ${slug}`);
         continue;
       }
-      const drills = slug === 'kz-case-atau' ? atauDrills() : WORDS.map(build);
+      const drills = WORDS.map(build);
       let position = maxPositionStmt.get(topic.id).m + 1;
       for (const d of drills) {
         insertDrill.run(topic.id, d.prompt, d.correct_answer, JSON.stringify(d.distractors), d.explanation, position);

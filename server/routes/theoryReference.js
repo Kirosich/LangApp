@@ -129,6 +129,8 @@ theoryReferenceRouter.get('/:slug', (req, res) => {
     learned: learnedStmt.get(topic.language, theme).c
   }));
 
+  const drillCount = db.prepare('SELECT COUNT(*) AS c FROM theory_drills WHERE topic_id = ?').get(topic.id).c;
+
   res.json({
     id: topic.id,
     language: topic.language,
@@ -139,7 +141,8 @@ theoryReferenceRouter.get('/:slug', (req, res) => {
     read: Boolean(topic.read_at),
     read_count: topic.read_count ?? 0,
     sections,
-    practice
+    practice,
+    drill_count: drillCount
   });
 });
 

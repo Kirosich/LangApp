@@ -100,12 +100,14 @@ function TheoryTopicBody({ slug, topic, onReload }) {
             {topic.read ? 'Понятно, прочитать ещё раз ✓' : 'Понятно, отметить как изученное'}
           </button>
 
-          <button
-            onClick={() => setDrillMode(true)}
-            className="w-full rounded-xl border border-indigo-500/40 bg-indigo-500/10 hover:bg-indigo-500/20 text-indigo-300 py-3 font-medium"
-          >
-            🧠 Начать дриллы
-          </button>
+          {topic.drill_count > 0 && (
+            <button
+              onClick={() => setDrillMode(true)}
+              className="w-full rounded-xl border border-indigo-500/40 bg-indigo-500/10 hover:bg-indigo-500/20 text-indigo-300 py-3 font-medium"
+            >
+              🧠 Начать дриллы
+            </button>
+          )}
         </>
       )}
 
