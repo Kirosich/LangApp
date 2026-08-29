@@ -23,7 +23,7 @@ const KZ_CARDS = [
   // природа и религия
   { term: 'дін', translation_ru: 'религия', theme: 'природа и религия', level: 'B1', example_sentence: 'Әр елдің өз діни дәстүрі бар.' },
   { term: 'құзғын', translation_ru: 'стервятник, ворон', theme: 'природа и религия', level: 'B1', example_sentence: 'Аспанда құзғын ұшып жүр.' },
-  { term: 'қоректену', translation_ru: 'питаться', theme: 'природа и религия', level: 'B1', example_sentence: 'Балықтар су жәндіктерімен қоректенеді.' },
+  { term: 'қоректену', translation_ru: 'питаться', theme: 'глаголы', level: 'B1', example_sentence: 'Балықтар су жәндіктерімен қоректенеді.' },
   { term: 'жəндік', translation_ru: 'живность, существо', theme: 'природа и религия', level: 'B1', example_sentence: 'Өзенде түрлі жәндік бар.' },
 
   // чувства и абстракции
