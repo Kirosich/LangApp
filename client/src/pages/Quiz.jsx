@@ -50,6 +50,9 @@ export default function Quiz() {
   const cardsReviewedRef = useRef(0);
   const correctCountRef = useRef(0);
   const sessionEndedRef = useRef(true);
+  const sessionTypeRef = useRef(null);
+  const sessionLanguageRef = useRef(null);
+  const hiddenTimerRef = useRef(null);
 
   useEffect(() => {
     setTheme('');
@@ -74,12 +77,49 @@ export default function Quiz() {
 
   useEffect(() => {
     function handlePageHide() {
+      clearHiddenTimer();
       if (!sessionEndedRef.current && sessionIdRef.current) {
         endSessionOnUnload(sessionIdRef.current, cardsReviewedRef.current, correctCountRef.current);
+        sessionEndedRef.current = true;
       }
     }
+
+    function clearHiddenTimer() {
+      if (hiddenTimerRef.current) {
+        clearTimeout(hiddenTimerRef.current);
+        hiddenTimerRef.current = null;
+      }
+    }
+
+    // Same fix as useStudySession: a session left running while the tab
+    // is hidden (phone locked, app backgrounded) otherwise counts that
+    // idle gap as quiz time, since minutes are a plain started_at/
+    // ended_at diff with no activity tracking on the server.
+    function handleVisibilityChange() {
+      if (document.hidden) {
+        clearHiddenTimer();
+        hiddenTimerRef.current = setTimeout(endActiveSession, 3 * 60 * 1000);
+      } else {
+        clearHiddenTimer();
+        if (sessionEndedRef.current && sessionTypeRef.current) {
+          // Was away long enough to auto-close -- pick back up with a
+          // fresh session if the quiz is still in progress.
+          sessionEndedRef.current = false;
+          api
+            .startSession(sessionTypeRef.current, sessionLanguageRef.current)
+            .then((session) => {
+              sessionIdRef.current = session.id;
+            })
+            .catch(() => {});
+        }
+      }
+    }
+
+    document.addEventListener('visibilitychange', handleVisibilityChange);
     window.addEventListener('pagehide', handlePageHide);
     return () => {
+      clearHiddenTimer();
+      document.removeEventListener('visibilitychange', handleVisibilityChange);
       window.removeEventListener('pagehide', handlePageHide);
       endActiveSession();
     };
@@ -107,7 +147,9 @@ export default function Quiz() {
       cardsReviewedRef.current = 0;
       correctCountRef.current = 0;
       sessionEndedRef.current = false;
-      const session = await api.startSession(SESSION_TYPE_FOR_QUIZ[type], language);
+      sessionTypeRef.current = SESSION_TYPE_FOR_QUIZ[type];
+      sessionLanguageRef.current = language;
+      const session = await api.startSession(sessionTypeRef.current, sessionLanguageRef.current);
       sessionIdRef.current = session.id;
     } catch (e) {
       setError(e.message);
@@ -125,6 +167,7 @@ export default function Quiz() {
     endActiveSession()?.then((result) => {
       if (result?.newly_earned_badges?.length) celebrateBadge();
     });
+    sessionTypeRef.current = null;
     setResult({ score, total });
     setStage('result');
   }
