@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { isCloseEnough } from '../../utils/levenshtein';
+import { levenshtein } from '../../utils/levenshtein';
 
 // translation_ru often lists more than one accepted answer -- "вариант1 /
 // вариант2" or "вариант1, вариант2" (both conventions are already used
@@ -20,7 +20,7 @@ const TARGET_LABEL = { kz: 'Переведите на казахский', en: '
 export default function TypingQuiz({ questions, onFinish, onProgress }) {
   const [index, setIndex] = useState(0);
   const [value, setValue] = useState('');
-  const [checked, setChecked] = useState(null); // null | 'correct' | 'incorrect'
+  const [checked, setChecked] = useState(null); // null | 'correct' | 'typo' | 'incorrect'
   const [score, setScore] = useState(0);
 
   const question = questions[index];
@@ -29,10 +29,11 @@ export default function TypingQuiz({ questions, onFinish, onProgress }) {
   function submit(e) {
     e.preventDefault();
     if (checked || !value.trim()) return;
-    const correct = acceptableAnswers(question.expected_answer).some((alt) => isCloseEnough(value, alt, 1));
-    setChecked(correct ? 'correct' : 'incorrect');
-    if (correct) setScore((s) => s + 1);
-    onProgress?.(correct);
+    const bestDistance = Math.min(...acceptableAnswers(question.expected_answer).map((alt) => levenshtein(value, alt)));
+    const result = bestDistance === 0 ? 'correct' : bestDistance <= 1 ? 'typo' : 'incorrect';
+    setChecked(result);
+    if (result !== 'incorrect') setScore((s) => s + 1);
+    onProgress?.(result !== 'incorrect');
   }
 
   function next() {
@@ -69,6 +70,8 @@ export default function TypingQuiz({ questions, onFinish, onProgress }) {
           className={`w-full rounded-xl border px-4 py-3 bg-neutral-900 focus:outline-none focus:ring-2 focus:ring-indigo-500 ${
             checked === 'correct'
               ? 'border-emerald-500'
+              : checked === 'typo'
+              ? 'border-amber-500'
               : checked === 'incorrect'
               ? 'border-red-500'
               : 'border-neutral-800'
@@ -77,6 +80,9 @@ export default function TypingQuiz({ questions, onFinish, onProgress }) {
 
         {checked === 'incorrect' && (
           <div className="text-sm text-red-400">Правильный ответ: {question.expected_answer}</div>
+        )}
+        {checked === 'typo' && (
+          <div className="text-sm text-amber-400">Почти! Небольшая опечатка. Правильный ответ: {question.expected_answer}</div>
         )}
         {checked === 'correct' && <div className="text-sm text-emerald-400">Верно!</div>}
 
