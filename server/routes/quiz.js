@@ -82,14 +82,39 @@ function buildChoiceQuestions(cards) {
   });
 }
 
-function buildTypingQuestions(cards) {
+// The Russian side of a card sometimes lists multiple accepted answers
+// ("вариант1 / вариант2" or "вариант1, вариант2") with a parenthetical
+// note, e.g. "идти, ехать (куда-то)". When ru->kz shows that as the
+// PROMPT (not just as one of several accepted answers, like the kz->ru
+// direction does client-side), it needs to be a single clean phrase.
+function primaryRuText(translation) {
+  const first = translation
+    .replace(/\([^)]*\)/g, '')
+    .split(/[,/]/)[0]
+    .trim();
+  return first || translation;
+}
+
+function buildTypingQuestions(cards, direction) {
+  if (direction === 'ru_to_lang') {
+    return cards.map((card) => ({
+      card_id: card.id,
+      language: card.language,
+      term: primaryRuText(card.translation_ru),
+      transcription: null,
+      theme: card.theme,
+      expected_answer: card.term,
+      prompt_language: 'ru'
+    }));
+  }
   return cards.map((card) => ({
     card_id: card.id,
     language: card.language,
     term: card.term,
     transcription: card.transcription,
     theme: card.theme,
-    expected_answer: card.translation_ru
+    expected_answer: card.translation_ru,
+    prompt_language: card.language
   }));
 }
 
@@ -152,6 +177,7 @@ quizRouter.get('/', (req, res) => {
   const count = Math.min(Math.max(parseInt(req.query.count, 10) || 10, 1), 50);
   const includeMastered = req.query.includeMastered === 'true' || req.query.includeMastered === '1';
   const includeBacklog = req.query.includeBacklog === 'true' || req.query.includeBacklog === '1';
+  const direction = req.query.direction === 'ru_to_lang' ? 'ru_to_lang' : 'lang_to_ru';
 
   if (!VALID_TYPES.has(type)) {
     return res.status(400).json({ error: `type must be one of: ${[...VALID_TYPES].join(', ')}` });
@@ -175,7 +201,7 @@ quizRouter.get('/', (req, res) => {
     return res.json({ type, questions: buildChoiceQuestions(cards) });
   }
   if (type === 'typing') {
-    return res.json({ type, questions: buildTypingQuestions(cards) });
+    return res.json({ type, questions: buildTypingQuestions(cards, direction) });
   }
   return res.json({ type, rounds: buildMatchingRounds(cards) });
 });

@@ -19,7 +19,8 @@ const VALID_SESSION_TYPES = new Set([
   'media_exam',
   'proficiency_test',
   'theory_read',
-  'dialogue'
+  'dialogue',
+  'quiz_typing_reverse'
 ]);
 
 sessionsRouter.post('/start', (req, res) => {

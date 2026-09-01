@@ -15,6 +15,8 @@ function acceptableAnswers(expected) {
     .filter(Boolean);
 }
 
+const TARGET_LABEL = { kz: 'Переведите на казахский', en: 'Переведите на английский' };
+
 export default function TypingQuiz({ questions, onFinish, onProgress }) {
   const [index, setIndex] = useState(0);
   const [value, setValue] = useState('');
@@ -50,7 +52,9 @@ export default function TypingQuiz({ questions, onFinish, onProgress }) {
       </div>
 
       <div className="rounded-2xl border border-neutral-800 bg-neutral-900 p-6 text-center">
-        <div className="text-xs uppercase tracking-wide text-neutral-500 mb-2">Переведите на русский</div>
+        <div className="text-xs uppercase tracking-wide text-neutral-500 mb-2">
+          {question.prompt_language === 'ru' ? TARGET_LABEL[question.language] || 'Переведите' : 'Переведите на русский'}
+        </div>
         <div className="text-2xl font-semibold">{question.term}</div>
         {question.transcription && <div className="text-sm text-neutral-500 mt-1">[{question.transcription}]</div>}
       </div>

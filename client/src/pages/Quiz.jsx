@@ -28,6 +28,9 @@ const SESSION_TYPE_FOR_QUIZ = {
   table: 'theory_drill'
 };
 
+const LANG_LABEL = { kz: 'казахский', en: 'английский' };
+const LANG_LABEL_GEN = { kz: 'казахского', en: 'английского' };
+
 export default function Quiz() {
   const [searchParams] = useSearchParams();
   const { language } = useLanguage();
@@ -39,6 +42,7 @@ export default function Quiz() {
   const [count, setCount] = useState(10);
   const [includeMastered, setIncludeMastered] = useState(false);
   const [includeBacklog, setIncludeBacklog] = useState(false);
+  const [typingDirection, setTypingDirection] = useState('lang_to_ru');
   const [paradigmTypes, setParadigmTypes] = useState([]);
   const [paradigmType, setParadigmType] = useState('');
   const [quizData, setQuizData] = useState(null);
@@ -139,7 +143,8 @@ export default function Quiz() {
               language,
               count,
               includeMastered: includeMastered ? 'true' : '',
-              includeBacklog: includeBacklog ? 'true' : ''
+              includeBacklog: includeBacklog ? 'true' : '',
+              direction: type === 'typing' ? typingDirection : ''
             });
       setQuizData(data);
       setStage('playing');
@@ -147,7 +152,8 @@ export default function Quiz() {
       cardsReviewedRef.current = 0;
       correctCountRef.current = 0;
       sessionEndedRef.current = false;
-      sessionTypeRef.current = SESSION_TYPE_FOR_QUIZ[type];
+      sessionTypeRef.current =
+        type === 'typing' && typingDirection === 'ru_to_lang' ? 'quiz_typing_reverse' : SESSION_TYPE_FOR_QUIZ[type];
       sessionLanguageRef.current = language;
       const session = await api.startSession(sessionTypeRef.current, sessionLanguageRef.current);
       sessionIdRef.current = session.id;
@@ -291,6 +297,20 @@ export default function Quiz() {
           </div>
         ) : (
           <>
+            {type === 'typing' && (
+              <div>
+                <label className="block text-sm text-neutral-400 mb-1">Направление</label>
+                <select
+                  value={typingDirection}
+                  onChange={(e) => setTypingDirection(e.target.value)}
+                  className="w-full rounded-lg bg-neutral-900 border border-neutral-800 px-3 py-2"
+                >
+                  <option value="lang_to_ru">С {LANG_LABEL_GEN[language]} на русский</option>
+                  <option value="ru_to_lang">С русского на {LANG_LABEL[language]}</option>
+                </select>
+              </div>
+            )}
+
             <div>
               <label className="block text-sm text-neutral-400 mb-1">Тема</label>
               <select
