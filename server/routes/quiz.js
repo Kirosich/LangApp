@@ -31,30 +31,32 @@ function selectQuizCards({ theme, language, count, includeMastered, includeBackl
   const masteredClause = includeMastered ? '' : 'AND c.mastered_at IS NULL';
   const statusClause = includeBacklog ? "c.status IN ('active', 'backlog')" : "c.status = 'active'";
 
+  // Cap how much of the quiz comes from "due" cards at half the request.
+  // Quizzes never advance FSRS scheduling (only Study's rate() does), so
+  // a due pool >= count used to hand back the exact same set on every
+  // single call -- those cards can't leave "due" through quizzing alone.
+  const dueLimit = Math.ceil(count / 2);
   const due = db
     .prepare(
       `SELECT c.* FROM cards c JOIN progress p ON p.card_id = c.id
        WHERE (p.fsrs_due IS NULL OR p.fsrs_due <= ?) ${masteredClause} ${clause}
        ORDER BY COALESCE(p.fsrs_due, ?) ASC LIMIT ?`
     )
-    .all(now, ...params, now, count);
+    .all(now, ...params, now, dueLimit);
 
-  let cards = due;
-  if (due.length < count) {
-    const excludeIds = due.map((c) => c.id);
-    const placeholders = excludeIds.length ? excludeIds.map(() => '?').join(',') : null;
-    const excludeClause = placeholders ? `AND c.id NOT IN (${placeholders})` : '';
+  const excludeIds = due.map((c) => c.id);
+  const placeholders = excludeIds.length ? excludeIds.map(() => '?').join(',') : null;
+  const excludeClause = placeholders ? `AND c.id NOT IN (${placeholders})` : '';
 
-    const filler = db
-      .prepare(
-        `SELECT c.* FROM cards c
-         WHERE ${statusClause} ${masteredClause} ${clause} ${excludeClause}
-         ORDER BY RANDOM() LIMIT ?`
-      )
-      .all(...params, ...excludeIds, count - due.length);
+  const filler = db
+    .prepare(
+      `SELECT c.* FROM cards c
+       WHERE ${statusClause} ${masteredClause} ${clause} ${excludeClause}
+       ORDER BY RANDOM() LIMIT ?`
+    )
+    .all(...params, ...excludeIds, count - due.length);
 
-    cards = [...due, ...filler];
-  }
+  const cards = [...due, ...filler];
 
   // Quiz sessions don't touch FSRS scheduling, so the "due" portion above
   // would otherwise come back in the exact same fsrs_due order every time
