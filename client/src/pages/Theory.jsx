@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useSearchParams } from 'react-router-dom';
 import TheoryPlan from '../components/theory/TheoryPlan';
 import TheoryReferenceList from '../components/theory/TheoryReferenceList';
 import DialogueList from '../components/theory/DialogueList';
@@ -12,9 +12,16 @@ const VIEWS = [
   { value: 'reading', label: 'Чтение' },
   { value: 'exam', label: 'Экзамен' }
 ];
+const VALID_VIEWS = new Set(VIEWS.map((v) => v.value));
 
 export default function Theory() {
-  const [view, setView] = useState('reference');
+  const [searchParams, setSearchParams] = useSearchParams();
+  const tabParam = searchParams.get('tab');
+  const view = VALID_VIEWS.has(tabParam) ? tabParam : 'reference';
+
+  function setView(next) {
+    setSearchParams(next === 'reference' ? {} : { tab: next });
+  }
 
   return (
     <div className="p-4 max-w-lg mx-auto space-y-4">

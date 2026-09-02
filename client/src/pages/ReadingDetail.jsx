@@ -73,8 +73,8 @@ function ReadingDetailBody({ text, onReload }) {
 
   return (
     <div className="p-4 max-w-lg mx-auto space-y-4">
-      <Link to="/theory" className="text-sm text-neutral-500 hover:text-neutral-300">
-        ← К справочнику
+      <Link to="/theory?tab=reading" className="text-sm text-neutral-500 hover:text-neutral-300">
+        ← К списку чтения
       </Link>
 
       <div>

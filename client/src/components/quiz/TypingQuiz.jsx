@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useRef, useState } from 'react';
 import { levenshtein } from '../../utils/levenshtein';
 
 // translation_ru often lists more than one accepted answer -- "вариант1 /
@@ -22,6 +22,7 @@ export default function TypingQuiz({ questions, onFinish, onProgress }) {
   const [value, setValue] = useState('');
   const [checked, setChecked] = useState(null); // null | 'correct' | 'typo' | 'incorrect'
   const [score, setScore] = useState(0);
+  const inputRef = useRef(null);
 
   const question = questions[index];
   const isLast = index === questions.length - 1;
@@ -44,6 +45,11 @@ export default function TypingQuiz({ questions, onFinish, onProgress }) {
     setValue('');
     setChecked(null);
     setIndex((i) => i + 1);
+    // readOnly (not disabled) keeps the input focusable, but tapping the
+    // "Далее" button still moves focus there and closes the on-screen
+    // keyboard on mobile -- pull focus back so it's already open for the
+    // next question instead of the user having to tap the field again.
+    requestAnimationFrame(() => inputRef.current?.focus());
   }
 
   return (
@@ -63,8 +69,9 @@ export default function TypingQuiz({ questions, onFinish, onProgress }) {
       <form onSubmit={submit} className="flex flex-col gap-3">
         <input
           autoFocus
+          ref={inputRef}
           value={value}
-          disabled={Boolean(checked)}
+          readOnly={Boolean(checked)}
           onChange={(e) => setValue(e.target.value)}
           placeholder="Ваш ответ…"
           className={`w-full rounded-xl border px-4 py-3 bg-neutral-900 focus:outline-none focus:ring-2 focus:ring-indigo-500 ${

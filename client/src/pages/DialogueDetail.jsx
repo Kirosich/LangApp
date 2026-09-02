@@ -55,8 +55,8 @@ function DialogueDetailBody({ slug, dialogue, onReload }) {
 
   return (
     <div className="p-4 max-w-lg mx-auto space-y-4">
-      <Link to="/theory" className="text-sm text-neutral-500 hover:text-neutral-300">
-        ← К справочнику
+      <Link to="/theory?tab=dialogues" className="text-sm text-neutral-500 hover:text-neutral-300">
+        ← К списку диалогов
       </Link>
 
       <div>
