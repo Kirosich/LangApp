@@ -27,6 +27,16 @@ export default function DialogueDetail() {
 function DialogueDetailBody({ slug, dialogue, onReload }) {
   const [error, setError] = useState('');
   const [marking, setMarking] = useState(false);
+  const [revealed, setRevealed] = useState(() => new Set());
+
+  function toggleRevealed(i) {
+    setRevealed((prev) => {
+      const next = new Set(prev);
+      if (next.has(i)) next.delete(i);
+      else next.add(i);
+      return next;
+    });
+  }
 
   useStudySession('dialogue', dialogue.language);
 
@@ -69,7 +79,16 @@ function DialogueDetailBody({ slug, dialogue, onReload }) {
               <div className="font-medium">{line.text}</div>
               <SpeakButton text={line.text} language={dialogue.language} />
             </div>
-            <div className="text-sm text-neutral-400 mt-0.5">{line.translation_ru}</div>
+            {revealed.has(i) ? (
+              <div className="text-sm text-neutral-400 mt-0.5">{line.translation_ru}</div>
+            ) : (
+              <button
+                onClick={() => toggleRevealed(i)}
+                className="text-xs text-indigo-400 hover:text-indigo-300 mt-1"
+              >
+                Показать перевод
+              </button>
+            )}
           </div>
         ))}
       </div>
